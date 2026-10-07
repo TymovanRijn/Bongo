@@ -17,6 +17,7 @@ EINDE = re.compile(r"[.!?…]+[\"'’”)\]]*\s+|\n+")
 AFKORTINGEN = {
     "bijv", "bv", "o.a", "d.w.z", "m.a.w", "z.s.m", "ca", "nr", "dr", "mr", "ir", "ing",
     "st", "etc", "enz", "evt", "incl", "excl", "max", "min", "o.b.v", "t.o.v", "i.p.v", "n.a.v",
+    "a.s", "m.b.t", "t.e.m", "feb", "mrt", "apr", "jun", "jul", "aug", "sep", "sept", "okt", "nov", "dec",
 }
 
 

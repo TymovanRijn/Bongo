@@ -34,8 +34,9 @@ Eén tik doet steeds het logische:
 | praten | stil maar |
 
 De code staat in `assistent/spraak/`: `audio.py` (microfoon, luidspreker, einde van je zin),
-`verstaan.py` (Whisper), `stem.py` (Piper), `zinnen.py` (tekst in zinnen knippen) en `keten.py`
-(alles in de goede volgorde).
+`verstaan.py` (Whisper), `stem.py` (Azure en Piper), `zinnen.py` (tekst in zinnen knippen),
+`uitspraak.py` (tekst uitspreekbaar maken: "14:30" wordt "half drie", emoji en opmaak eruit),
+`wekwoord.py` en `keten.py` (alles in de goede volgorde).
 
 ## Waarom zo
 
@@ -243,6 +244,7 @@ In de webapp, onder Meer > Snelheid, staat per stap hoe lang het duurde. Lees vo
 | Hij reageert nooit op je stem | Verkeerd kanaal (`MIC_KANAAL`), of de microfoon staat te zacht (`alsamixer`) |
 | Hij verstaat "Bingo" in plaats van "Bongo" | Praat wat dichterbij, of probeer `STT_MODEL=medium` (beter, maar trager) |
 | De stem downloaden lukt niet | De naam in `STEM` bestaat niet. Lijst: `.venv/bin/python -m piper.download_voices \| grep nl_` |
+| Hij spreekt woorden raar uit | Kijk in de webapp onder Meer > Logboek bij `uitgesproken`: daar staat precies wat er naar de stem ging (met \| tussen de zinnen). Staat daar iets geks, dan ligt het aan de tekst (zeg het mij); staat het er goed en klinkt het fout, dan ligt het aan de stem: zet Azure aan |
 | "Azure weigert de sleutel" | `AZURE_SPEECH_KEY` of `AZURE_SPEECH_REGIO` klopt niet. Kijk bij Sleutels en eindpunt |
 | Hij klinkt nog steeds als Piper | Kijk in het logboek van de kern waarom Azure niet werkt, of draai de geluidstest |
 | Hij hoort zichzelf praten | De luidspreker zit niet aan de ReSpeaker, dus er is geen echo-onderdrukking. Zet hem zachter |

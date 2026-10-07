@@ -22,6 +22,7 @@ import time
 from typing import Callable, Iterable, Iterator, Protocol
 
 from ..brain import BreinFout
+from .uitspraak import spreekbaar
 from .zinnen import Zinnensplitser
 
 log = logging.getLogger(__name__)
@@ -261,16 +262,27 @@ class Spraak:
         self._spreek(iter([tekst]), einde_zin)
 
     def _spreek(self, zinnen: Iterator[str], einde_zin: float | None = None) -> None:
-        """Spreek de zinnen uit zodra ze er zijn. De ondertitel op het scherm groeit mee."""
+        """Spreek de zinnen uit zodra ze er zijn. De ondertitel op het scherm groeit mee.
+
+        De ondertitel is de tekst zoals Claude hem schreef; naar de stem gaat hij uitspreekbaar
+        gemaakt ("14:30" wordt "half drie"). Wat er precies naar de stem ging, staat in het
+        logboek (soort "uitgesproken"), met | tussen de zinnen.
+        """
         gezegd: list[str] = []
+        uitgesproken: list[str] = []
         eerste_geluid: list[float] = []
 
         def geluid() -> Iterator[tuple[bytes, int]]:
             for zin in zinnen:
                 gezegd.append(zin)
                 self._zet("praten", " ".join(gezegd))
+                uit = spreekbaar(zin)
+                if not uit:
+                    continue  # er stond alleen een emoji of opmaak
+                uitgesproken.append(uit)
+                log.info("naar de stem: %s", uit)
                 stem_begin = time.monotonic()
-                for stuk in self.stem.zinnen(zin):
+                for stuk in self.stem.zinnen(uit):
                     if not eerste_geluid:
                         eerste_geluid.append(time.monotonic())
                         self._meet("stem", _ms(stem_begin))
@@ -278,7 +290,14 @@ class Spraak:
                             self._meet("tot_geluid", _ms(einde_zin))
                     yield stuk
 
-        afgemaakt = self.luidspreker.speel(geluid())
+        try:
+            afgemaakt = self.luidspreker.speel(geluid())
+        finally:
+            if uitgesproken:
+                try:
+                    self.logboek.schrijf("uitgesproken", " | ".join(uitgesproken))
+                except Exception:
+                    log.exception("logboek schrijven mislukt")
         if eerste_geluid:
             self._meet("praten", _ms(eerste_geluid[0]), {"afgemaakt": afgemaakt, "tekens": len(" ".join(gezegd))})
 
