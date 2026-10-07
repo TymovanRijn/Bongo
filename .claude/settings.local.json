@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat /etc/os-release; uname -a; python3 --version; whoami; hostname)",
+      "Read(//home/tymo/**)",
+      "Bash(lspci)",
+      "Bash(lsusb)",
+      "Bash(hailortcli fw-control *)",
+      "Read(//dev/**)",
+      "Read(//proc/device-tree/hat/**)"
+    ]
+  }
+}
