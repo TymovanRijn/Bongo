@@ -133,6 +133,10 @@ class Instellingen:
     speaker_apparaat: str = "default"
     stt_model: str = "small"  # Whisper: tiny, base, small, medium (groter = beter en trager)
     stem: str = "nl_NL-mls-medium"  # Piper-stem
+    # Een natuurlijkere stem van Microsoft Azure (docs/spraak.md). Leeg: alleen Piper.
+    azure_speech_key: str = ""
+    azure_speech_regio: str = "westeurope"
+    azure_stem: str = "nl-NL-FennaNeural"
     # Leeg: geen wekwoord, de microfoon gaat alleen aan als je op het gezicht tikt. Anders de naam
     # van een kant-en-klaar wekwoord (hey_jarvis) of het pad naar een eigen model (.onnx).
     wekwoord: str = ""
@@ -186,6 +190,9 @@ def laad_instellingen() -> Instellingen:
         speaker_apparaat=_tekst("SPEAKER_APPARAAT", "default"),
         stt_model=_tekst("STT_MODEL", "small"),
         stem=_tekst("STEM", "nl_NL-mls-medium"),
+        azure_speech_key=_tekst("AZURE_SPEECH_KEY"),
+        azure_speech_regio=_tekst("AZURE_SPEECH_REGIO", "westeurope").lower().replace(" ", ""),
+        azure_stem=_tekst("AZURE_STEM", "nl-NL-FennaNeural"),
         wekwoord=_wekwoord(),
         wekwoord_drempel=_kommagetal("WEKWOORD_DREMPEL", 0.5),
         nacht_van=_tekst("NACHT_VAN", "23:00"),

@@ -211,15 +211,23 @@ class Luidspreker:
         volgende zin nog gemaakt wordt). Geeft False als het werd onderbroken."""
         self._gestopt = False
         proces = None
+        huidige_rate = None
         try:
             for geluid, rate in stukken:
                 if self._gestopt:
                     return False
+                if proces is not None and rate != huidige_rate:
+                    # Ander geluid (bijvoorbeeld Piper na Azure): eerst dit afmaken, dan opnieuw
+                    # beginnen met de nieuwe snelheid. Anders klinkt het te snel of te langzaam.
+                    proces.stdin.close()
+                    proces.wait()
+                    proces = None
                 if proces is None:
                     try:
                         proces = subprocess.Popen(self._commando(rate), stdin=subprocess.PIPE, stderr=subprocess.DEVNULL)
                     except FileNotFoundError as e:
                         raise GeluidFout("aplay is niet geïnstalleerd") from e
+                    huidige_rate = rate
                     with self._slot:
                         self._proces = proces
                 proces.stdin.write(geluid)

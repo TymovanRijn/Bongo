@@ -172,21 +172,31 @@ def speel(apparaat: str, geluid: bytes, rate: int) -> None:
         raise _fout(r.stderr)
 
 
-def testgeluid(inst) -> tuple[bytes, int]:
-    """Bongo's eigen stem (Piper), of anders een melodietje."""
+def testgeluid(inst) -> tuple[bytes, int, str]:
+    """De testzin met de stem uit .env (Azure of Piper), of anders een melodietje. Plus waar het vandaan komt."""
+    waarom = ""
+    if inst.azure_speech_key:
+        try:
+            from .stem import AzureStem
+
+            azure = AzureStem(inst.azure_speech_key, inst.azure_speech_regio, inst.azure_stem)
+            return b"".join(g for g, _ in azure.zinnen(TEST_ZIN)), AzureStem.RATE, f"Azure ({inst.azure_stem})"
+        except Exception as e:
+            waarom = f"Azure werkt niet: {e}. "
     try:
         from .stem import PiperStem
 
         stukken = list(PiperStem(inst.stem, inst.data_dir / "modellen" / "piper").zinnen(TEST_ZIN))
-        return b"".join(g for g, _ in stukken), stukken[0][1]
-    except Exception:
-        # Met pauzes ertussen: een doorlopende toon haalt de ruisonderdrukking van de ReSpeaker weg,
-        # en dan lijkt de echo-onderdrukking beter dan hij is.
-        tonen = []
-        for hoogte in (523, 659, 784, 659, 587, 698, 880, 698, 523, 659, 784, 523):
-            t = np.arange(int(RATE * 0.22)) / RATE
-            tonen += [np.sin(2 * np.pi * hoogte * t) * 0.3, np.zeros(int(RATE * 0.06))]
-        return (np.concatenate(tonen) * 32767).astype(np.int16).tobytes(), RATE
+        return b"".join(g for g, _ in stukken), stukken[0][1], waarom + f"Piper ({inst.stem})"
+    except Exception as e:
+        waarom += f"Piper werkt niet: {e}. "
+    # Met pauzes ertussen: een doorlopende toon haalt de ruisonderdrukking van de ReSpeaker weg,
+    # en dan lijkt de echo-onderdrukking beter dan hij is.
+    tonen = []
+    for hoogte in (523, 659, 784, 659, 587, 698, 880, 698, 523, 659, 784, 523):
+        t = np.arange(int(RATE * 0.22)) / RATE
+        tonen += [np.sin(2 * np.pi * hoogte * t) * 0.3, np.zeros(int(RATE * 0.06))]
+    return (np.concatenate(tonen) * 32767).astype(np.int16).tobytes(), RATE, waarom + "een melodietje"
 
 
 # ---- de test zelf ---------------------------------------------------------------------------
@@ -253,9 +263,9 @@ def _geluidstest(inst, schrijf, vraag) -> int:
         schrijf("\n4. De ReSpeaker heeft geen uitgang voor een luidspreker. De speakers zitten dus ergens anders.")
     else:
         schrijf("\n4. Nu spreek ik een zin uit via de ReSpeaker en luister ik tegelijk mee.")
-        schrijf("   Bongo's stem laden (de eerste keer wordt hij gedownload)...")
-        geluid, rate = testgeluid(inst)
-        schrijf("   Even stil zijn...")
+        schrijf("   Bongo's stem laden (Piper wordt de eerste keer gedownload)...")
+        geluid, rate, bron = testgeluid(inst)
+        schrijf(f"   Stem: {bron}. Even stil zijn...")
         duur = len(geluid) / 2 / rate
 
         def afspelen_():

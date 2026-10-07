@@ -292,15 +292,16 @@ def maak_spraak(o, bij_wijziging: Callable[[], None] | None = None) -> Spraak | 
         from .audio import Luidspreker as AlsaLuidspreker
         from .audio import Microfoon as AlsaMicrofoon
         from .audio import piep
-        from .stem import PiperStem
+        from .stem import maak_stem
         from .verstaan import WhisperHerkenner
     except ImportError as e:
         log.warning("spraak staat uit: het pakket '%s' ontbreekt (.venv/bin/pip install -r requirements.txt)", e.name)
         return None
     modellen = inst.data_dir / "modellen"
     log.info(
-        "spraak: microfoon %s (kanaal %d van %d), luidspreker %s%s",
+        "spraak: microfoon %s (kanaal %d van %d), luidspreker %s, stem %s%s",
         inst.mic_apparaat, inst.mic_kanaal, inst.mic_kanalen, inst.speaker_apparaat,
+        f"Azure {inst.azure_stem} (reserve: Piper)" if inst.azure_speech_key else f"Piper {inst.stem}",
         "" if "ArrayUAC10" in inst.mic_apparaat else " (niet de ReSpeaker? test het met: python -m assistent.kern geluid)",
     )
     microfoon = AlsaMicrofoon(inst.mic_apparaat, inst.mic_kanalen, inst.mic_kanaal)
@@ -313,7 +314,7 @@ def maak_spraak(o, bij_wijziging: Callable[[], None] | None = None) -> Spraak | 
         o.logboek,
         microfoon,
         WhisperHerkenner(inst.stt_model, modellen / "whisper"),
-        PiperStem(inst.stem, modellen / "piper"),
+        maak_stem(inst),
         AlsaLuidspreker(inst.speaker_apparaat),
         bij_wijziging,
         piep=piep(),

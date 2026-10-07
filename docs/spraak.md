@@ -12,7 +12,7 @@ tik op het gezicht (of het wekwoord)
   -> Whisper maakt er tekst van                 (op de Pi: er gaat geen geluid naar internet)
   -> Claude denkt na en schrijft het antwoord   (alleen de tekst gaat naar Anthropic)
      ... zodra zijn eerste zin af is:
-  -> Piper maakt er spraak van                  (op de Pi)
+  -> Azure maakt er spraak van                  (of Piper, op de Pi: zie "Een betere stem")
   -> luidspreker                                (aplay)
      ... terwijl Claude de volgende zin schrijft
 ```
@@ -43,10 +43,12 @@ De code staat in `assistent/spraak/`: `audio.py` (microfoon, luidspreker, einde 
   altijd aan staat. Het geluid blijft wel op de Pi (zie "Het wekwoord" hieronder), maar een
   microfoon die altijd luistert, hoort een bewuste keuze te zijn, niet iets wat ongemerkt aan
   staat. Daarom staat het standaard uit.
-- **Verstaan en praten op de Pi zelf.** Er gaat geen geluid uit je kamer naar internet, het kost
-  niets per vraag en je hebt geen extra account nodig. De prijs: snelheid. Whisper `small` op de
-  processor van de Pi 5 doet er naar schatting 2 tot 5 seconden over voor een korte zin (gemeten
-  heb ik het niet; zie "Hoe snel is het?").
+- **Verstaan op de Pi zelf.** Er gaat geen geluid uit je kamer naar internet, het kost niets per
+  vraag en je hebt geen extra account nodig. De prijs: snelheid. Whisper `small` op de processor van
+  de Pi 5 doet er naar schatting 2 tot 5 seconden over voor een korte zin (gemeten heb ik het niet;
+  zie "Hoe snel is het?").
+- **Praten mag via internet (Azure).** Daarvoor gaat alleen de tekst van Bongo's antwoord weg, en
+  die ging al naar Claude. Je stem blijft thuis. Zonder Azure praat hij met Piper, op de Pi zelf.
 - **Alleen het scherm van de Pi kan de microfoon aanzetten.** De webapp op je telefoon niet:
   anders kan iemand die bij de webapp komt, op afstand meeluisteren in je kamer.
 - **Een piepje** als de microfoon aangaat, zodat je weet wanneer je kunt praten.
@@ -55,6 +57,44 @@ De code staat in `assistent/spraak/`: `audio.py` (microfoon, luidspreker, einde 
   ongeveer de tijd die Claude nodig heeft voor de tweede en derde. Een vraag over de agenda heeft
   bovendien twee rondes met Claude (eerst "ik wil in de agenda kijken", dan het antwoord), en
   alleen de laatste ronde kan sneller.
+
+## Een betere stem: Azure
+
+Piper (op de Pi zelf) is gratis en werkt zonder internet, maar klinkt robotachtig. Microsoft Azure
+heeft echte Nederlandse stemmen die veel natuurlijker klinken. Anthropic zelf heeft geen stemmen:
+Claude kan alleen tekst lezen en schrijven.
+
+Wat er naar Microsoft gaat: alleen de tekst van Bongo's antwoord, nooit je stem. Het gratis tegoed
+is 0,5 miljoen tekens per maand. Een antwoord van Bongo is meestal zo'n 100 tot 200 tekens, dus dat
+is ruim genoeg voor duizenden antwoorden.
+
+1. Ga naar [portal.azure.com](https://portal.azure.com) en maak een account. Microsoft vraagt een
+   creditcard om te controleren wie je bent; met het gratis tegoed betaal je niets.
+2. Zoek bovenin naar **Speech service** (in het Nederlands soms "Spraakservice") en kies **Maken**.
+   De namen in Azure veranderen nogal eens; zoek anders op "Speech".
+3. Vul in:
+   - Resourcegroep: nieuw, bijvoorbeeld `bongo`
+   - Regio: **West Europe**
+   - Naam: iets unieks, bijvoorbeeld `bongo-stem-tymo`
+   - Prijscategorie: **Free F0**
+
+   Dan **Controleren en maken** en **Maken**.
+4. Open de nieuwe resource en kies **Sleutels en eindpunt** (Keys and Endpoint). Neem **Sleutel 1**
+   over en kijk welke **Locatie/regio** er staat (bijvoorbeeld `westeurope`).
+5. Zet in `.env` op de Pi:
+   ```
+   AZURE_SPEECH_KEY=de-sleutel
+   AZURE_SPEECH_REGIO=westeurope
+   ```
+6. Test het met de kern uit: `.venv/bin/python -m assistent.kern geluid`. In stap 4 staat dan
+   `Stem: Azure (nl-NL-FennaNeural)` en hoor je de nieuwe stem. Start daarna de kern.
+
+Andere stemmen: zet `AZURE_STEM=nl-NL-MaartenNeural` (een man) of `nl-NL-ColetteNeural` (een vrouw).
+Standaard is `nl-NL-FennaNeural` (een vrouw).
+
+Werkt Azure niet (geen internet, verkeerde sleutel, tegoed op), dan praat Bongo met Piper verder.
+In het logboek van de kern staat dan waarom (`de stem van Azure werkt niet`). Na een minuut probeert
+hij Azure opnieuw.
 
 ## Het wekwoord
 
@@ -200,6 +240,8 @@ In de webapp, onder Meer > Snelheid, staat per stap hoe lang het duurde. Lees vo
 | Hij reageert nooit op je stem | Verkeerd kanaal (`MIC_KANAAL`), of de microfoon staat te zacht (`alsamixer`) |
 | Hij verstaat "Bingo" in plaats van "Bongo" | Praat wat dichterbij, of probeer `STT_MODEL=medium` (beter, maar trager) |
 | De stem downloaden lukt niet | De naam in `STEM` bestaat niet. Lijst: `.venv/bin/python -m piper.download_voices \| grep nl_` |
+| "Azure weigert de sleutel" | `AZURE_SPEECH_KEY` of `AZURE_SPEECH_REGIO` klopt niet. Kijk bij Sleutels en eindpunt |
+| Hij klinkt nog steeds als Piper | Kijk in het logboek van de kern waarom Azure niet werkt, of draai de geluidstest |
 | Hij hoort zichzelf praten | De luidspreker zit niet aan de ReSpeaker, dus er is geen echo-onderdrukking. Zet hem zachter |
 | "Het wekwoord werkt niet: No module named 'openwakeword'" | De pakketten zijn van voor het wekwoord: `.venv/bin/pip install -r requirements.txt` |
 | "Het wekwoord werkt niet: ..." over downloaden | De eerste keer moet de Pi bij GitHub kunnen. Kijk of hij internet heeft en herstart de kern |

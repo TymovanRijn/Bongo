@@ -85,7 +85,7 @@ def nep(tmp_path, monkeypatch, inst):
     monkeypatch.setenv("PATH", f"{bin_}{os.pathsep}{os.environ['PATH']}")
     monkeypatch.setenv("NEP_MAP", str(tmp_path))
     # Een kort testgeluid van 2 seconden, zonder Piper (dat zou een stem willen downloaden).
-    monkeypatch.setattr(geluidstest, "testgeluid", lambda inst_: (b"\x10\x00" * RATE * 2, RATE))
+    monkeypatch.setattr(geluidstest, "testgeluid", lambda inst_: (b"\x10\x00" * RATE * 2, RATE, "nep"))
 
     def _draai(kanalen=6, opnames=(STEM, luidspreker(30)), antwoorden=("", "j"), arecord_l=ARECORD_L, bezet=False):
         instelling = {"kanalen": kanalen, "opnames": list(opnames), "arecord_l": arecord_l, "aplay_l": APLAY_L, "bezet": bezet}

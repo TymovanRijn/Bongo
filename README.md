@@ -123,5 +123,6 @@ opvalt in plaats van pas op de Pi.
 - [x] De kern: webapp, aanmelden, ochtendoverzicht, herstel na een stroomstoring
 - [x] Het touchscreen als kiosk (fase 4): Bongo's gezicht, nog te testen op het echte scherm
 - [x] Spraak (fase 3): gebouwd en getest zonder microfoon; nog te testen met de ReSpeaker
+- [x] Een natuurlijkere stem via Azure, met Piper als reserve; getest met een nep-Azure
 - [x] Een wekwoord met openWakeWord ("Hey Jarvis"), standaard uit; getest met een computerstem, nog niet met de ReSpeaker
 - [ ] Een eigen wekwoord trainen ("Hé Bongo"), zie `docs/spraak.md`
