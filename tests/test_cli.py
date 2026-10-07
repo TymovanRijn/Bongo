@@ -56,7 +56,9 @@ def test_geen_nummer(maak_terminal):
 
 def test_fout_van_het_brein_wordt_netjes_gemeld(maak_terminal):
     t, _ = maak_terminal([geen_verbinding()])
-    assert t.verwerk("hallo") == "Bongo: Ik kan het internet niet bereiken, dus ik kan nu even niet nadenken."
+    assert t.verwerk("hallo") == (
+        "Bongo: Ik kan het internet niet bereiken, dus ik kan nu even niet nadenken.\n   (technisch: Connection error.)"
+    )
 
 
 def test_agenda(maak_terminal):

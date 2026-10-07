@@ -77,7 +77,8 @@ class Terminal:
         try:
             antwoord = self.o.brain.vraag(tekst, bron="cli")
         except BreinFout as e:
-            return f"{self.naam}: {e.melding}"
+            # In de terminal ook de technische oorzaak: wie hier zit, wil weten wát er misging.
+            return f"{self.naam}: {e.melding}" + (f"\n   (technisch: {e.technisch})" if e.technisch != e.melding else "")
         regels = [f"{self.naam}: {antwoord.tekst}"]
         regels += [self._als_regel(self.o.wachtrij.get(vid)) for vid in antwoord.voorstel_ids]
         regels.append(f"   ({antwoord.ms / 1000:.1f} s, $ {antwoord.kosten_usd:.4f})")

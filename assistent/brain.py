@@ -74,12 +74,33 @@ _FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 
 class BreinFout(Exception):
-    """Iets ging mis. `melding` is geschikt om hardop te zeggen."""
+    """Iets ging mis. `melding` is geschikt om hardop te zeggen, `technisch` is voor het logboek."""
 
     def __init__(self, melding: str, technisch: str = ""):
         super().__init__(melding)
         self.melding = melding
         self.technisch = technisch or melding
+
+
+def _api_melding(e: anthropic.APIStatusError) -> str:
+    """Wat de API zelf zegt, zonder alles eromheen. Bijvoorbeeld:
+    "400 invalid_request_error: Your credit balance is too low ..." """
+    body = e.body if isinstance(e.body, dict) else {}
+    fout = body.get("error") if isinstance(body.get("error"), dict) else {}
+    return f"{e.status_code} {fout.get('type', 'fout')}: {fout.get('message') or e.message}"
+
+
+def _geweigerd(e: anthropic.APIStatusError, model: str) -> BreinFout:
+    """De API weigert het verzoek (4xx). Voor de bekende oorzaken een melding die zegt wat je moet doen."""
+    technisch = _api_melding(e)
+    if "credit balance" in technisch.lower():
+        return BreinFout(
+            "Er staat geen tegoed meer op je Anthropic-account. Zet er tegoed op in de Anthropic Console, onder Billing.",
+            technisch,
+        )
+    if e.status_code == 404:
+        return BreinFout(f"Ik kan het model {model} niet vinden met deze API-sleutel. Kijk naar CLAUDE_MODEL in punt env.", technisch)
+    return BreinFout("Er ging iets mis bij het nadenken.", technisch)
 
 
 @dataclass
@@ -292,17 +313,17 @@ class Brain:
         try:
             resp = self.client.beta.messages.create(**kwargs)
         except anthropic.AuthenticationError as e:
-            raise BreinFout("Mijn API-sleutel wordt geweigerd. Kijk even naar de sleutel in punt env.", str(e)) from e
+            raise BreinFout("Mijn API-sleutel wordt geweigerd. Kijk even naar de sleutel in punt env.", _api_melding(e)) from e
         except anthropic.PermissionDeniedError as e:
-            raise BreinFout("Ik mag dit model niet gebruiken met deze API-sleutel.", str(e)) from e
+            raise BreinFout("Ik mag dit model niet gebruiken met deze API-sleutel.", _api_melding(e)) from e
         except anthropic.RateLimitError as e:
-            raise BreinFout("Ik krijg het even te druk bij Claude. Probeer het zo nog eens.", str(e)) from e
+            raise BreinFout("Ik krijg het even te druk bij Claude. Probeer het zo nog eens.", _api_melding(e)) from e
         except anthropic.BadRequestError:
             raise  # de aanroeper beslist (bijvoorbeeld denkblokken weghalen en opnieuw proberen)
         except anthropic.APIStatusError as e:
             if e.status_code >= 500:
-                raise BreinFout("Claude heeft op dit moment een storing. Probeer het straks nog eens.", str(e)) from e
-            raise BreinFout("Er ging iets mis bij het nadenken.", str(e)) from e
+                raise BreinFout("Claude heeft op dit moment een storing. Probeer het straks nog eens.", _api_melding(e)) from e
+            raise _geweigerd(e, self.inst.model) from e
         except anthropic.APIConnectionError as e:
             raise BreinFout("Ik kan het internet niet bereiken, dus ik kan nu even niet nadenken.", str(e)) from e
         ms = int((time.monotonic() - begin) * 1000)
@@ -404,6 +425,8 @@ class Brain:
             self._bekende_status.pop(vid, None)
 
     def _log_fout(self, fout: BreinFout, bron: str) -> None:
+        # Ook naar het logbestand (data/logs/), niet alleen naar de database: daar kijk je als eerste.
+        log.warning("vraag mislukt: %s | %s", fout.melding, fout.technisch)
         self.logboek.schrijf("fout", {"melding": fout.melding, "technisch": fout.technisch}, gesprek=self.gesprek_id, bron=bron)
 
     def _meld_geheugen(self) -> None:
@@ -431,7 +454,7 @@ class Brain:
                     self.history = _zonder_denkblokken(self.history)
                     opnieuw_geprobeerd = True
                     continue
-                raise BreinFout("Er ging iets mis bij het nadenken.", str(e)) from e
+                raise _geweigerd(e, self.inst.model) from e
             antwoord.kosten_usd += kosten
             blokken = [_als_dict(b) for b in resp.content]
 
@@ -487,7 +510,7 @@ class Brain:
         try:
             resp, kosten = self._roep_api([bericht], doel=doel, met_tools=False, systeem=self._maak_systeem())
         except anthropic.BadRequestError as e:
-            raise BreinFout("Er ging iets mis bij het nadenken.", str(e)) from e
+            raise _geweigerd(e, self.inst.model) from e
         if resp.stop_reason == "refusal":
             raise BreinFout("Daar kan ik je helaas niet mee helpen.", "stop_reason=refusal")
         tekst = "\n".join(b["text"] for b in map(_als_dict, resp.content) if b.get("type") == "text").strip()
