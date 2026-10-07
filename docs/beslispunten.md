@@ -105,8 +105,13 @@ die uit zichzelf begint te praten, kan iemand wakker maken die uitslaapt. Zet he
 
 ## 6. Spraak
 
-**Keuze: tikken op het gezicht (geen wekwoord), verstaan en praten op de Pi zelf (Whisper en
-Piper), en alleen het scherm van de Pi kan de microfoon aanzetten.**
+**Keuze: tikken op het gezicht, verstaan en praten op de Pi zelf (Whisper en Piper), en alleen
+het scherm van de Pi kan de microfoon aanzetten. Een wekwoord kan erbij (openWakeWord, ook op de
+Pi zelf), maar staat standaard uit: `WEKWOORD=` (leeg).**
+
+Waarom uit: met een wekwoord staat de microfoon altijd aan. Het geluid verlaat de Pi niet, maar
+een microfoon die altijd luistert, moet je zelf willen, niet ongemerkt krijgen. Tymo koos voor
+openWakeWord; zet `WEKWOORD=hey_jarvis` om het aan te zetten.
 
 De uitleg en de afwegingen staan in `docs/spraak.md`.
 

@@ -62,7 +62,7 @@ cp .env.example .env             # vul daarna ANTHROPIC_API_KEY en WEB_PIN in
 Met de kern aan:
 
 - **Touchscreen:** `http://localhost:8765/kiosk` (op de Pi zelf, zonder aanmelden). Tik op het gezicht
-  om te praten (zie `docs/spraak.md` voor de microfoon).
+  om te praten (zie `docs/spraak.md` voor de microfoon), of zet het wekwoord aan (`WEKWOORD=hey_jarvis`).
 - **Telefoon:** `http://192.168.1.53:8765` of `http://raspberrypi.local:8765`. De eerste keer vraagt
   hij de pincode uit `WEB_PIN`. Zet daarna "Toevoegen aan beginscherm" aan in de browser.
 - **Nog een apparaat koppelen zonder pincode:** in de webapp onder Meer > Apparaten, of op de Pi:
@@ -111,4 +111,5 @@ opvalt in plaats van pas op de Pi.
 - [x] De kern: webapp, aanmelden, ochtendoverzicht, herstel na een stroomstoring
 - [x] Het touchscreen als kiosk (fase 4): Bongo's gezicht, nog te testen op het echte scherm
 - [x] Spraak (fase 3): gebouwd en getest zonder microfoon; nog te testen met de ReSpeaker
-- [ ] Een wekwoord ("Hé Bongo"), zie `docs/spraak.md`
+- [x] Een wekwoord met openWakeWord ("Hey Jarvis"), standaard uit; getest met een computerstem, nog niet met de ReSpeaker
+- [ ] Een eigen wekwoord trainen ("Hé Bongo"), zie `docs/spraak.md`

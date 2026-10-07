@@ -10,7 +10,7 @@ import logging
 import subprocess
 import threading
 from collections import deque
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Iterator
 
 import numpy as np
 
@@ -126,21 +126,30 @@ class Microfoon:
         ]
         self._maak_detector = detector
         self._stop = threading.Event()
+        self._proces: subprocess.Popen | None = None
+
+    def start(self) -> None:
+        """Niets te doen: deze microfoon gaat pas aan bij een opname (met wekwoord: zie wekwoord.py)."""
 
     def stop(self) -> None:
         """Tik tijdens het luisteren: wat er tot nu toe gezegd is, is de vraag."""
         self._stop.set()
 
-    def neem_op(self, eindpunt: Eindpunt | None = None) -> np.ndarray | None:
-        """Neem op tot iemand klaar is met praten. Geeft 16 kHz mono (float32), of None als er niets gezegd werd."""
-        self._stop.clear()
-        eindpunt = eindpunt or Eindpunt()
-        detector = self._maak_detector()
+    def sluit(self) -> None:
+        """Zet de microfoon echt uit (de kern stopt)."""
+        proces = self._proces
+        if proces is not None and proces.poll() is None:
+            proces.kill()
+
+    def stroom(self) -> Iterator[np.ndarray]:
+        """De microfoon als doorlopende stroom stukjes van 32 ms: float32, 16 kHz, alleen het gekozen kanaal.
+        De microfoon gaat uit zodra je stopt met lezen."""
         grootte = VENSTER * 2 * self.kanalen  # 16 bit = 2 bytes per sample per kanaal
         try:
             proces = subprocess.Popen(self.commando, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except FileNotFoundError as e:
             raise GeluidFout(f"{self.commando[0]} is niet geïnstalleerd") from e
+        self._proces = proces
         try:
             while True:
                 ruw = proces.stdout.read(grootte)
@@ -149,7 +158,25 @@ class Microfoon:
                     fout = proces.stderr.read().decode(errors="replace").strip()
                     raise GeluidFout(f"de microfoon stopte: {fout or 'geen geluid meer'}")
                 stukje = np.frombuffer(ruw, dtype=np.int16).reshape(-1, self.kanalen)[:, self.kanaal]
-                stukje = stukje.astype(np.float32) / 32768.0
+                yield stukje.astype(np.float32) / 32768.0
+        finally:
+            if proces.poll() is None:
+                proces.kill()
+            proces.wait()
+            self._proces = None
+
+    def neem_op(self, eindpunt: Eindpunt | None = None, stroom: Iterator[np.ndarray] | None = None) -> np.ndarray | None:
+        """Neem op tot iemand klaar is met praten. Geeft 16 kHz mono (float32), of None als er niets gezegd werd.
+
+        Zonder `stroom` gaat de microfoon alleen voor deze opname aan. Met het wekwoord staat
+        hij al open, en komt het geluid uit die stroom (zie wekwoord.py).
+        """
+        self._stop.clear()
+        eindpunt = eindpunt or Eindpunt()
+        detector = self._maak_detector()
+        bron = stroom if stroom is not None else self.stroom()
+        try:
+            for stukje in bron:
                 status = eindpunt.voeg_toe(stukje, detector(stukje))
                 if status == "niets":
                     return None
@@ -157,10 +184,10 @@ class Microfoon:
                     return eindpunt.audio()
                 if self._stop.is_set():
                     return None  # getikt voordat er iets gezegd werd: toch maar niet
+            raise GeluidFout("de microfoon stopte")
         finally:
-            if proces.poll() is None:
-                proces.kill()
-            proces.wait()
+            if stroom is None:
+                bron.close()  # de microfoon weer uit
 
 
 def piep(hoogte: float = 880.0, ms: int = 120) -> tuple[bytes, int]:

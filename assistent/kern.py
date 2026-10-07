@@ -4,7 +4,7 @@ Hij levert:
 - de webapp voor de telefoon (/), het touchscreen (/kiosk) en de aanmeldpagina (/inloggen);
 - de API die die pagina's gebruiken (/api/...);
 - de planner: ochtendoverzicht, logboek opruimen, scherm 's nachts uit;
-- de spraak: een tik op het gezicht op het scherm start een gesprek (spraak/).
+- de spraak: een tik op het gezicht (of het wekwoord, als dat aan staat) start een gesprek (spraak/).
 
 Wie erbij mag, regelt de poortwachter (toegang.py, beslispunt 2).
 
@@ -130,9 +130,11 @@ def maak_app(o: Onderdelen, start_planner: bool = True, spraak: Spraak | None = 
         if start_planner:
             planner.start()
         if spraak is not None:
-            spraak.warm_op()  # modellen laden (de eerste keer downloaden) op de achtergrond
+            spraak.start()  # modellen laden (de eerste keer downloaden) op de achtergrond, wekwoord aan
         yield
         planner.stop()
+        if spraak is not None:
+            spraak.sluit()
 
     app = FastAPI(title="Bongo", lifespan=levensloop, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.onderdelen, app.state.poort, app.state.planner, app.state.melder = o, poort, planner, melder

@@ -282,7 +282,7 @@ class NepSpraak:
     def __init__(self):
         self.tikken = 0
         self.bij_wijziging = None
-        self.opgewarmd = False
+        self.gestart = self.gesloten = False
 
     def tik(self):
         self.tikken += 1
@@ -291,8 +291,11 @@ class NepSpraak:
     def status(self):
         return {"toestand": "luisteren" if self.tikken else "rust", "ondertitel": "", "melding": "", "klaar": True}
 
-    def warm_op(self):
-        self.opgewarmd = True
+    def start(self):
+        self.gestart = True
+
+    def sluit(self):
+        self.gesloten = True
 
 
 def test_alleen_het_scherm_zet_de_microfoon_aan(maak):
@@ -316,9 +319,9 @@ def test_spraak_uit(web):
     assert c.get("/api/toestand").json()["spraak"]["toestand"] == "uit"
 
 
-def test_spraak_warmt_op_bij_het_starten(maak):
+def test_spraak_start_en_stopt_met_de_kern(maak):
     o, _ = maak()
     spraak = NepSpraak()
     with TestClient(maak_app(o, start_planner=False, spraak=spraak), base_url=BASIS, client=("127.0.0.1", 1)):
-        pass
-    assert spraak.opgewarmd and spraak.bij_wijziging is not None
+        assert spraak.gestart and not spraak.gesloten
+    assert spraak.gesloten and spraak.bij_wijziging is not None

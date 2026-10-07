@@ -1,8 +1,9 @@
 """De spraakketen: tik op het gezicht -> luisteren -> verstaan -> nadenken -> praten.
 
 Alles gebeurt op de Pi zelf, behalve het nadenken (Claude). Er gaat dus nooit geluid naar
-internet, alleen de tekst die Whisper ervan maakte. En de microfoon staat alleen aan tussen
-een tik op het scherm en het einde van je zin: Bongo luistert niet stiekem mee.
+internet, alleen de tekst die Whisper ervan maakte. Zonder wekwoord staat de microfoon alleen
+aan tussen een tik op het scherm en het einde van je zin. Met wekwoord (WEKWOORD in .env) staat
+hij altijd aan, maar blijft het geluid op de Pi tot je het wekwoord zegt (zie wekwoord.py).
 
 Elke stap wordt gemeten (tabel `metingen`, zie Meer > Snelheid in de webapp), zodat je ziet
 waar de tijd heen gaat. De belangrijkste: `tot_geluid`, van het einde van je zin tot het
@@ -30,8 +31,10 @@ NOG_LADEN = "Ik ben mijn oren en stem nog aan het klaarmaken. Probeer het zo nog
 
 
 class Microfoon(Protocol):
+    def start(self) -> None: ...
     def neem_op(self): ...
     def stop(self) -> None: ...
+    def sluit(self) -> None: ...
 
 
 class Herkenner(Protocol):
@@ -85,17 +88,28 @@ class Spraak:
         """Eén knop voor alles: in rust begint hij te luisteren, tijdens het luisteren is je
         zin klaar, tijdens het praten is hij meteen stil."""
         with self._slot:
-            if self.toestand == "rust" and self._laden:
-                # Anders hangt hij minutenlang op "denken" terwijl Whisper nog downloadt.
-                self.melding = NOG_LADEN
-                self.bij_wijziging()
-            elif self.toestand == "rust":
-                self._start(self._beurt, "luisteren")
+            if self.toestand == "rust":
+                self._begin_te_luisteren()
             elif self.toestand == "luisteren":
                 self.microfoon.stop()
             elif self.toestand == "praten":
                 self.luidspreker.stop()
             return self.toestand
+
+    def wek(self) -> bool:
+        """Het wekwoord is gehoord: hij gaat luisteren, net als na een tik.
+
+        Maar alleen als hij niets doet. Een tik tijdens het praten betekent "stil maar", het
+        wekwoord niet: anders kan hij zichzelf stilmaken. Geeft True als hij is gaan luisteren.
+        """
+        with self._slot:
+            if self.toestand != "rust":
+                return False
+            return self._begin_te_luisteren()
+
+    def mag_wekken(self) -> bool:
+        """Mag het wekwoord nu meeluisteren? Niet terwijl hij zelf bezig is (zie wekwoord.py)."""
+        return self.toestand == "rust"
 
     def zeg(self, tekst: str) -> bool:
         """Iets uitspreken zonder dat erom gevraagd is (het ochtendoverzicht). Alleen als hij niets doet."""
@@ -104,6 +118,20 @@ class Spraak:
                 return False
             self._start(lambda: self._praat(tekst), "praten")
             return True
+
+    def start(self) -> None:
+        """De kern start: modellen laden en, met wekwoord, de microfoon openzetten."""
+        self.warm_op()
+        self.microfoon.start()
+
+    def sluit(self) -> None:
+        """De kern stopt: de microfoon echt uit."""
+        self.microfoon.sluit()
+
+    def meld(self, tekst: str) -> None:
+        """Laat zien dat er iets mis is (het gezicht kijkt verward, de tekst staat eronder)."""
+        self.melding = tekst
+        self.bij_wijziging()
 
     def warm_op(self) -> None:
         """Laad de modellen op de achtergrond. De eerste keer worden ze gedownload: dat kan minuten duren."""
@@ -114,7 +142,8 @@ class Spraak:
                 self.herkenner.warm_op()
                 self.stem.warm_op()
                 self.klaar = True
-                self.melding = ""
+                if self.melding == NOG_LADEN:
+                    self.melding = ""
                 log.info("spraak klaar (modellen geladen in %.1f s)", (time.monotonic() - begin))
             except Exception as e:
                 log.exception("spraakmodellen laden mislukt")
@@ -132,6 +161,15 @@ class Spraak:
             self._draad.join(timeout)
 
     # ---- de beurt ----------------------------------------------------------------------
+    def _begin_te_luisteren(self) -> bool:
+        if self._laden:
+            # Anders hangt hij minutenlang op "denken" terwijl Whisper nog downloadt.
+            self.melding = NOG_LADEN
+            self.bij_wijziging()
+            return False
+        self._start(self._beurt, "luisteren")
+        return True
+
     def _start(self, werk: Callable[[], None], eerste_toestand: str) -> None:
         def draai():
             try:
@@ -260,13 +298,23 @@ def maak_spraak(o, bij_wijziging: Callable[[], None] | None = None) -> Spraak | 
         log.warning("spraak staat uit: het pakket '%s' ontbreekt (.venv/bin/pip install -r requirements.txt)", e.name)
         return None
     modellen = inst.data_dir / "modellen"
-    return Spraak(
+    microfoon = AlsaMicrofoon(inst.mic_apparaat, inst.mic_kanalen, inst.mic_kanaal)
+    if inst.wekwoord:
+        from .wekwoord import AltijdAan, WekwoordDetector
+
+        microfoon = AltijdAan(microfoon, lambda: WekwoordDetector(inst.wekwoord), inst.wekwoord_drempel)
+    spraak = Spraak(
         o.brain,
         o.logboek,
-        AlsaMicrofoon(inst.mic_apparaat, inst.mic_kanalen, inst.mic_kanaal),
+        microfoon,
         WhisperHerkenner(inst.stt_model, modellen / "whisper"),
         PiperStem(inst.stem, modellen / "piper"),
         AlsaLuidspreker(inst.speaker_apparaat),
         bij_wijziging,
         piep=piep(),
     )
+    if inst.wekwoord:
+        microfoon.bij_wekwoord = spraak.wek
+        microfoon.bij_fout = spraak.meld
+        microfoon.mag_wekken = spraak.mag_wekken
+    return spraak

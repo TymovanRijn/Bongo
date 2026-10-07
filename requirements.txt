@@ -12,6 +12,9 @@ uvicorn==0.54.0
 # Spraak (fase 3): verstaan met Whisper, praten met Piper, allebei op de Pi zelf
 faster-whisper==1.2.1
 piper-tts==1.8.0
+# Het wekwoord (alleen gebruikt als WEKWOORD in .env staat). Hij installeert ook tflite-runtime,
+# maar Bongo gebruikt de onnx-versie van de modellen; zie assistent/spraak/wekwoord.py.
+openwakeword==0.6.0
 
 # Tests
 pytest==9.1.1

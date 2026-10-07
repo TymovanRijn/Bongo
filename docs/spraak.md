@@ -1,11 +1,11 @@
 # Spraak (fase 3)
 
-Tik op Bongo's gezicht, praat, en hij antwoordt hardop.
+Tik op Bongo's gezicht (of zeg het wekwoord, als dat aan staat), praat, en hij antwoordt hardop.
 
 ## Hoe het werkt
 
 ```
-tik op het gezicht
+tik op het gezicht (of het wekwoord)
   -> piepje, microfoon aan                      (arecord)
   -> Silero VAD hoort wanneer je klaar bent     (op de Pi; zit in faster-whisper)
   -> microfoon uit
@@ -39,11 +39,10 @@ De code staat in `assistent/spraak/`: `audio.py` (microfoon, luidspreker, einde 
 
 ## Waarom zo
 
-- **Tikken, nog geen wekwoord.** Een wekwoord ("Hé Bongo") betekent dat de microfoon altijd aan
-  staat en een model continu meeluistert. Een Nederlands wekwoord moet je bovendien zelf trainen,
-  en een televisie die iets zegt wat erop lijkt, maakt Bongo wakker. Tikken is betrouwbaar en
-  privé, en het scherm staat er toch. Later kan er een wekwoord bij (bijvoorbeeld openWakeWord):
-  dat hoeft alleen `Spraak.tik()` aan te roepen.
+- **Tikken werkt altijd, het wekwoord zet je zelf aan.** Een wekwoord betekent dat de microfoon
+  altijd aan staat. Het geluid blijft wel op de Pi (zie "Het wekwoord" hieronder), maar een
+  microfoon die altijd luistert, hoort een bewuste keuze te zijn, niet iets wat ongemerkt aan
+  staat. Daarom staat het standaard uit.
 - **Verstaan en praten op de Pi zelf.** Er gaat geen geluid uit je kamer naar internet, het kost
   niets per vraag en je hebt geen extra account nodig. De prijs: snelheid. Whisper `small` op de
   processor van de Pi 5 doet er naar schatting 2 tot 5 seconden over voor een korte zin (gemeten
@@ -56,6 +55,72 @@ De code staat in `assistent/spraak/`: `audio.py` (microfoon, luidspreker, einde 
   ongeveer de tijd die Claude nodig heeft voor de tweede en derde. Een vraag over de agenda heeft
   bovendien twee rondes met Claude (eerst "ik wil in de agenda kijken", dan het antwoord), en
   alleen de laatste ronde kan sneller.
+
+## Het wekwoord
+
+Zet in `.env`:
+
+```
+WEKWOORD=hey_jarvis
+```
+
+en herstart de kern. Zeg "Hey Jarvis" en Bongo piept en luistert, net alsof je op zijn gezicht
+tikte. Je mag in één adem doorpraten ("Hey Jarvis, wat heb ik morgen?"): wat je na het wekwoord
+zegt, bewaart hij tot de opname begint. Uitzetten: maak `WEKWOORD=` weer leeg.
+
+De code staat in `assistent/spraak/wekwoord.py`. Het werkt met
+[openWakeWord](https://github.com/dscripka/openWakeWord):
+
+- **Waarom "Hey Jarvis" en niet "Hé Bongo"?** openWakeWord heeft een paar kant-en-klare
+  wekwoorden, allemaal Engels: `hey_jarvis`, `alexa`, `hey_mycroft` en `hey_rhasspy`. Een eigen
+  wekwoord moet je trainen (zie hieronder). Begin met een kant-en-klaar wekwoord: dan weet je of
+  de rest werkt voordat je tijd in trainen steekt.
+- **Zeg het op z'n Engels.** In een proef met een computerstem gaf "Hey Jarvis" met een Engelse
+  uitspraak een kans van 0,99, en met een Nederlandse uitspraak ("Hé Jarvis") maar 0,07.
+- **Wat er met het geluid gebeurt.** De microfoon staat altijd aan, maar het geluid gaat alleen naar
+  openWakeWord, op de Pi zelf. Dat kijkt steeds naar de laatste twee seconden, houdt hooguit tien
+  seconden in het geheugen om mee te rekenen, en gooit ouder geluid weg. Niets wordt opgeslagen en
+  niets gaat naar internet. Pas na het wekwoord gebeurt hetzelfde als na een tik: opnemen, Whisper
+  maakt er tekst van, en alleen die tekst gaat naar Claude.
+- **Hij maakt zichzelf niet wakker.** De ReSpeaker haalt wat de luidspreker afspeelt al uit de
+  microfoon (echo-onderdrukking), als de luidspreker aan de ReSpeaker zit. Maar dat lukt nooit
+  helemaal: er blijft een zachte rest over, vooral als hij hard staat. Daarom krijgt openWakeWord
+  niets te horen terwijl Bongo luistert, nadenkt of praat, en begint het daarna met een schone lei
+  (`mag_wekken` in `wekwoord.py`). Het nadeel: met het wekwoord kun je hem niet onderbreken.
+  Stil maar: tik op het gezicht.
+- **De drempel.** openWakeWord geeft per 80 ms een kans van 0 tot 1 dat het wekwoord gezegd werd.
+  Boven `WEKWOORD_DREMPEL` (standaard 0,5) wordt Bongo wakker. Wordt hij vaak wakker van de
+  televisie, zet hem hoger (0,7). Hoort hij je vaak niet, lager (0,3).
+- **Wat het kost.** Op mijn testcomputer rekende openWakeWord 3 à 4 procent van de tijd, op één
+  processorkern. De Pi 5 is langzamer; reken op een paar keer zoveel, en dat is nog steeds weinig.
+  De eerste keer downloadt hij een paar kleine modellen van GitHub (samen zo'n 8 MB).
+- **Gaat er iets mis** (het model downloaden lukt niet, de microfoon is weg), dan kijkt het gezicht
+  verward en staat de reden eronder. Tikken werkt dan nog gewoon. Valt de microfoon weg, dan
+  probeert hij het elke tien seconden opnieuw.
+
+Getest met het echte model en een computerstem (espeak-ng), in een proef die net zo snel geluid
+geeft als een microfoon: hij hoorde "Hey Jarvis" binnen een tiende seconde nadat het gezegd was,
+en de vraag die er in één adem achteraan kwam, zat helemaal in de opname. Niet getest: een echte
+microfoon, een echte stem en een echte kamer. Dat moet de Pi uitwijzen.
+
+### Een eigen wekwoord: "Hé Bongo"
+
+openWakeWord kan een nieuw wekwoord leren zonder dat jij honderden keren "Hé Bongo" hoeft in te
+spreken: een computerstem spreekt het duizenden keren uit, met allerlei stemmen, snelheden en
+achtergrondgeluid, en daar leert het model van. De openWakeWord-README beschrijft hoe, onder
+"Training New Models" (er is een Google Colab-notebook voor). Train op "hey bongo": de computerstemmen
+zijn Engels, en "Hey Bongo" klinkt bijna hetzelfde als "Hé Bongo".
+
+Je krijgt een `.onnx`-bestand. Zet het in de projectmap, bijvoorbeeld in
+`data/modellen/wekwoord/hey_bongo.onnx`, en dan:
+
+```
+WEKWOORD=data/modellen/wekwoord/hey_bongo.onnx
+```
+
+Eerlijk: dit heb ik niet zelf gedaan. Een zelfgetraind wekwoord is vaak minder goed dan de
+kant-en-klare, die met veel meer werk gemaakt zijn. Probeer het, en zet de drempel bij als hij te
+vaak of te weinig reageert.
 
 ## De microfoon aansluiten (ReSpeaker Mic Array v2.0)
 
@@ -105,6 +170,7 @@ journalctl --user -u bongo-kern -f     # of de uitvoer van python -m assistent.k
 ```
 
 Klaar is het bij: `spraak klaar (modellen geladen in ... s)`.
+Met een wekwoord zie je ook `wekwoord staat aan`.
 
 ## Hoe snel is het?
 
@@ -129,3 +195,7 @@ In de webapp, onder Meer > Snelheid, staat per stap hoe lang het duurde. Lees vo
 | Hij verstaat "Bingo" in plaats van "Bongo" | Praat wat dichterbij, of probeer `STT_MODEL=medium` (beter, maar trager) |
 | De stem downloaden lukt niet | De naam in `STEM` bestaat niet. Lijst: `.venv/bin/python -m piper.download_voices \| grep nl_` |
 | Hij hoort zichzelf praten | De luidspreker zit niet aan de ReSpeaker, dus er is geen echo-onderdrukking. Zet hem zachter |
+| "Het wekwoord werkt niet: No module named 'openwakeword'" | De pakketten zijn van voor het wekwoord: `.venv/bin/pip install -r requirements.txt` |
+| "Het wekwoord werkt niet: ..." over downloaden | De eerste keer moet de Pi bij GitHub kunnen. Kijk of hij internet heeft en herstart de kern |
+| Hij reageert niet op het wekwoord | Kijk eerst of tikken werkt (dan doet de microfoon het). Zeg het wat duidelijker, of zet `WEKWOORD_DREMPEL` lager |
+| Hij wordt vanzelf wakker | Zet `WEKWOORD_DREMPEL` hoger (bijvoorbeeld 0,7) |

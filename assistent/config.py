@@ -28,6 +28,11 @@ def _getal(naam: str, standaard: int) -> int:
     return int(waarde) if waarde else standaard
 
 
+def _kommagetal(naam: str, standaard: float) -> float:
+    waarde = _tekst(naam).replace(",", ".")  # 0,6 en 0.6 mogen allebei
+    return float(waarde) if waarde else standaard
+
+
 def _ja(naam: str, standaard: bool) -> bool:
     waarde = _tekst(naam).lower()
     if not waarde:
@@ -41,6 +46,12 @@ def _pad(naam: str, standaard: Path) -> Path:
         return standaard
     pad = Path(waarde).expanduser()
     return pad if pad.is_absolute() else ROOT / pad
+
+
+def _wekwoord() -> str:
+    """De naam van een kant-en-klaar wekwoord, of het pad naar een eigen model (vanaf de projectmap)."""
+    waarde = _tekst("WEKWOORD")
+    return str(_pad("WEKWOORD", ROOT)) if waarde.endswith(".onnx") else waarde
 
 
 @dataclass(frozen=True)
@@ -103,12 +114,15 @@ class Instellingen:
     speaker_apparaat: str = "default"
     stt_model: str = "small"  # Whisper: tiny, base, small, medium (groter = beter en trager)
     stem: str = "nl_NL-mls-medium"  # Piper-stem
+    # Leeg: geen wekwoord, de microfoon gaat alleen aan als je op het gezicht tikt. Anders de naam
+    # van een kant-en-klaar wekwoord (hey_jarvis) of het pad naar een eigen model (.onnx).
+    wekwoord: str = ""
+    wekwoord_drempel: float = 0.5  # hoger: minder vaak per ongeluk wakker, maar ook vaker niet gehoord
 
     # Scherm
     nacht_van: str = "23:00"
     nacht_tot: str = "07:00"
     nacht_scherm_uit: bool = False
-
 
 
 def laad_instellingen() -> Instellingen:
@@ -153,6 +167,8 @@ def laad_instellingen() -> Instellingen:
         speaker_apparaat=_tekst("SPEAKER_APPARAAT", "default"),
         stt_model=_tekst("STT_MODEL", "small"),
         stem=_tekst("STEM", "nl_NL-mls-medium"),
+        wekwoord=_wekwoord(),
+        wekwoord_drempel=_kommagetal("WEKWOORD_DREMPEL", 0.5),
         nacht_van=_tekst("NACHT_VAN", "23:00"),
         nacht_tot=_tekst("NACHT_TOT", "07:00"),
         nacht_scherm_uit=_ja("NACHT_SCHERM_UIT", False),
