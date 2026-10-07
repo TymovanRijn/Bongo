@@ -1,0 +1,20 @@
+# De kern van Bongo als systemd-gebruikersservice (zie README, "Altijd aan").
+# Een gebruikersservice en geen systeemservice: dan kan Bongo later bij het geluid
+# (PipeWire draait in de sessie van tymo, zie docs/hardware.md).
+#
+# Staat de projectmap ergens anders dan ~/Home_Assistant? Pas dan de twee paden aan.
+
+[Unit]
+Description=Bongo: de kern (webapp, scherm en planner)
+
+[Service]
+WorkingDirectory=%h/Home_Assistant
+ExecStart=%h/Home_Assistant/.venv/bin/python -m assistent.kern
+Restart=on-failure
+RestartSec=5
+# Voor NACHT_SCHERM_UIT: xset moet het scherm kunnen vinden.
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=%h/.Xauthority
+
+[Install]
+WantedBy=default.target

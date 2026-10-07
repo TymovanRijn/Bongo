@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Bongo de aap">
+  <!-- oren -->
+  <circle cx="34" cy="98" r="28" fill="#7a4a24"/>
+  <circle cx="34" cy="98" r="16" fill="#f2c9a0"/>
+  <circle cx="166" cy="98" r="28" fill="#7a4a24"/>
+  <circle cx="166" cy="98" r="16" fill="#f2c9a0"/>
+  <!-- hoofd -->
+  <circle cx="100" cy="100" r="70" fill="#8b5a2b"/>
+  <path d="M100 38 q-8 -14 4 -22 q-2 10 8 14 z" fill="#8b5a2b"/>
+  <!-- gezicht -->
+  <path d="M100 72 C70 52 44 70 50 100 C40 130 66 160 100 160 C134 160 160 130 150 100 C156 70 130 52 100 72 Z" fill="#f2c9a0"/>
+  <!-- ogen -->
+  <ellipse cx="80" cy="96" rx="9" ry="11" fill="#2b1a0e"/>
+  <ellipse cx="120" cy="96" rx="9" ry="11" fill="#2b1a0e"/>
+  <circle cx="83" cy="92" r="3" fill="#fff"/>
+  <circle cx="123" cy="92" r="3" fill="#fff"/>
+  <!-- neus en mond -->
+  <ellipse cx="94" cy="118" rx="3" ry="2.5" fill="#5a3418"/>
+  <ellipse cx="106" cy="118" rx="3" ry="2.5" fill="#5a3418"/>
+  <path d="M78 132 q22 20 44 0" stroke="#5a3418" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <!-- wangen -->
+  <circle cx="66" cy="124" r="7" fill="#f0a98a" opacity="0.6"/>
+  <circle cx="134" cy="124" r="7" fill="#f0a98a" opacity="0.6"/>
+</svg>

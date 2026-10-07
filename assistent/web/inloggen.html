@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#3b2616">
+  <title>Bongo: aanmelden</title>
+  <link rel="icon" href="/static/aap.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/stijl.css">
+  <script src="/static/gedeeld.js" defer></script>
+  <script src="/static/inloggen.js" defer></script>
+</head>
+<body class="inloggen">
+  <main class="inlog-kaart">
+    <img src="/static/aap.svg" alt="" class="inlog-aap">
+    <h1 id="titel">Bongo</h1>
+
+    <form id="pinformulier" hidden>
+      <label for="pin">Pincode</label>
+      <input id="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="64" required>
+      <label for="apparaat">Naam van dit apparaat</label>
+      <input id="apparaat" maxlength="60" placeholder="bijvoorbeeld Telefoon van Tymo">
+      <button type="submit">Aanmelden</button>
+    </form>
+
+    <p id="melding" class="melding" role="alert"></p>
+  </main>
+</body>
+</html>

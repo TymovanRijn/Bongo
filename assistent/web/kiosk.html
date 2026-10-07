@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bongo</title>
+  <link rel="icon" href="/static/aap.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/stijl.css">
+  <script src="/static/gedeeld.js" defer></script>
+  <script src="/static/kiosk.js" defer></script>
+</head>
+<body class="kiosk">
+  <section class="kiosk-links">
+    <div id="klok" class="klok">--:--</div>
+    <div id="datum" class="datum"></div>
+    <img src="/static/aap.svg" alt="" id="aap" class="aap">
+    <p id="ochtend" class="ochtend"></p>
+  </section>
+
+  <section class="kiosk-rechts">
+    <div id="agenda"></div>
+    <p id="agenda-fout" class="storing-label" hidden></p>
+  </section>
+
+  <section id="voorstellen" class="kiosk-voorstellen" aria-live="polite"></section>
+
+  <div id="nacht" class="nacht" hidden>
+    <div id="nachtklok" class="nachtklok"></div>
+  </div>
+  <div id="storing" class="kiosk-storing" hidden>Geen verbinding met de kern. Ik probeer het opnieuw…</div>
+</body>
+</html>

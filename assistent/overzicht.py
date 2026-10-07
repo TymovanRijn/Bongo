@@ -55,8 +55,10 @@ def eenvoudig_overzicht(dag: dict, naam: str) -> str:
     return f"{groet} Je hebt vandaag {len(delen)} afspraken: " + ", ".join(delen[:-1]) + f" en {delen[-1]}."
 
 
-def maak_ochtendoverzicht(brain: Brain, agenda: AgendaBackend, tz: ZoneInfo, naam: str) -> tuple[str, float]:
-    dagen = agenda_per_dag(agenda, tz, dagen=2)
+def maak_ochtendoverzicht(
+    brain: Brain, agenda: AgendaBackend, tz: ZoneInfo, naam: str, vanaf: date | None = None
+) -> tuple[str, float]:
+    dagen = agenda_per_dag(agenda, tz, dagen=2, vanaf=vanaf)
     vandaag, morgen = dagen[0], dagen[1]
     regels = [f"- {a['tijd']}{'-' + a['eind'] if a['eind'] else ''}: {a['titel']}" + (f" ({a['locatie']})" if a["locatie"] else "")
               for a in vandaag["afspraken"]]

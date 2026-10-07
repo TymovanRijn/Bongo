@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#3b2616">
+  <title>Bongo</title>
+  <link rel="icon" href="/static/aap.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/stijl.css">
+  <script src="/static/gedeeld.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body class="webapp">
+  <header class="kop">
+    <img src="/static/aap.svg" alt="" class="kop-aap">
+    <h1 id="naam">Bongo</h1>
+    <span id="storing" class="storing-label" hidden>geen verbinding</span>
+  </header>
+
+  <main>
+    <section id="tab-praten" class="tab actief" aria-label="Praten">
+      <div id="gesprek" class="gesprek" aria-live="polite">
+        <p class="uitleg" id="welkom">Vraag iets, bijvoorbeeld: "Wat heb ik morgen?" of "Zet vrijdag om drie uur de kapper erin."</p>
+      </div>
+      <form id="vraagformulier" class="vraagformulier">
+        <input id="vraag" autocomplete="off" maxlength="2000" placeholder="Vraag iets aan Bongo" aria-label="Je vraag">
+        <button type="submit">Stuur</button>
+      </form>
+    </section>
+
+    <section id="tab-voorstellen" class="tab" aria-label="Voorstellen">
+      <h2>Wacht op jou</h2>
+      <div id="open"></div>
+      <h2>Eerder</h2>
+      <div id="recent"></div>
+    </section>
+
+    <section id="tab-agenda" class="tab" aria-label="Agenda">
+      <div id="agenda"></div>
+    </section>
+
+    <section id="tab-geheugen" class="tab" aria-label="Geheugen">
+      <p class="uitleg">Dit weet Bongo over je. Het gaat mee in elk gesprek, dus houd het kort: elke regel kost bij elke vraag geld.</p>
+      <textarea id="geheugen" spellcheck="false" aria-label="Geheugen"></textarea>
+      <div class="rij">
+        <button id="geheugen-opslaan" type="button">Opslaan</button>
+        <span id="geheugen-status" class="status-tekst"></span>
+      </div>
+    </section>
+
+    <section id="tab-meer" class="tab" aria-label="Meer">
+      <h2>Gesprek</h2>
+      <p class="uitleg">Bongo begint na tien minuten stilte vanzelf een nieuw gesprek.</p>
+      <div class="rij">
+        <button id="nieuw-gesprek" type="button" class="tweede">Begin nu een nieuw gesprek</button>
+        <button id="ochtend-nu" type="button" class="tweede">Maak het ochtendoverzicht</button>
+      </div>
+
+      <h2>Kosten</h2>
+      <div id="kosten"></div>
+
+      <h2>Apparaten</h2>
+      <p class="uitleg">Deze apparaten mogen bij Bongo. Kwijt? Ontkoppel hem hier.</p>
+      <div id="apparaten"></div>
+      <form id="koppelformulier" class="rij">
+        <input id="koppel-naam" maxlength="60" placeholder="Naam, bijvoorbeeld iPad" aria-label="Naam van het nieuwe apparaat">
+        <button type="submit" class="tweede">Koppellink maken</button>
+      </form>
+      <p id="koppel-uitkomst" class="koppel-uitkomst" hidden></p>
+
+      <h2>Logboek</h2>
+      <ol id="logboek" class="logboek"></ol>
+
+      <p><button id="uitloggen" type="button" class="tweede">Dit apparaat afmelden</button></p>
+    </section>
+  </main>
+
+  <nav class="tabs">
+    <button type="button" data-tab="praten" class="actief">Praten</button>
+    <button type="button" data-tab="voorstellen">Voorstellen <span id="aantal" class="teller" hidden></span></button>
+    <button type="button" data-tab="agenda">Agenda</button>
+    <button type="button" data-tab="geheugen">Geheugen</button>
+    <button type="button" data-tab="meer">Meer</button>
+  </nav>
+</body>
+</html>

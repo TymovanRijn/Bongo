@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Bongo (scherm)
+Comment=Start het touchscreen van Bongo
+Exec=sh -c "$HOME/Home_Assistant/deploy/kiosk.sh"
+X-GNOME-Autostart-enabled=true

@@ -5,11 +5,9 @@ caldav==3.3.1
 icalendar==7.3.0
 python-dotenv==1.2.4
 
-# Voor de kern en de webapp (nog te bouwen)
+# De kern en de webapp
 fastapi==0.142.2
 uvicorn==0.54.0
-jinja2==3.1.6
-python-multipart==0.0.32
 
 # Tests
 pytest==9.1.1
