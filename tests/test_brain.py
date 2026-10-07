@@ -30,7 +30,7 @@ def test_gewone_vraag(maak):
     assert antwoord.tekst == "Hoi Tymo!"
     assert antwoord.kosten_usd > 0
     [v] = nep.verzoeken
-    assert v["model"] == "claude-opus-5-5"
+    assert v["model"] == "claude-sonnet-5-5"
     assert v["output_config"] == {"effort": "low"}
     assert v["fallbacks"] == "default"
     assert v["cache_control"] == {"type": "ephemeral"}

@@ -49,7 +49,8 @@ class Instellingen:
     anthropic_api_key: str = ""
     # Alleen nodig als de sleutel niet bij één workspace hoort (dan weigert de API anders elk verzoek).
     anthropic_workspace_id: str = ""
-    model: str = "claude-opus-5-5"
+    # Gekozen na een meting op de Pi: even snel als Opus 5.5, de helft van de prijs (docs/beslispunten.md, punt 7).
+    model: str = "claude-sonnet-5-5"
     effort: str = "low"
     # adaptief: het model bepaalt zelf of en hoeveel het nadenkt (op effort low meestal kort).
     # tussen_tools: geen extra nadenken, alleen korte notities tussen tool-aanroepen. Alleen voor
@@ -117,7 +118,7 @@ def laad_instellingen() -> Instellingen:
     return Instellingen(
         anthropic_api_key=_tekst("ANTHROPIC_API_KEY"),
         anthropic_workspace_id=_tekst("ANTHROPIC_WORKSPACE_ID"),
-        model=_tekst("BONGO_MODEL", "claude-opus-5-5"),
+        model=_tekst("BONGO_MODEL", "claude-sonnet-5-5"),
         effort=_tekst("BONGO_EFFORT", "low"),
         denken=_tekst("BONGO_DENKEN", "adaptief").lower(),
         max_tokens=_getal("BONGO_MAX_TOKENS", 16000),

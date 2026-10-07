@@ -112,13 +112,29 @@ De uitleg en de afwegingen staan in `docs/spraak.md`.
 
 ## 7. Welk model?
 
-**Keuze: dat beslis jij, met de meting erbij. Standaard `claude-opus-5-5`.**
+**Keuze (Tymo, 7 oktober 2026): `claude-sonnet-5-5` met adaptief nadenken (`BONGO_DENKEN=adaptief`).**
 
-De eerste echte vraag op de Pi duurde 21,9 seconden met Opus 5.5. Dat is te traag om tegen te
+De eerste echte vraag op de Pi duurde 21,9 seconden met Opus 5.5. Dat leek te traag om tegen te
 praten. Opus 5.5 kan niet zonder nadenken; Sonnet 5.5 wel (`BONGO_DENKEN=tussen_tools`) en is
-bovendien goedkoper. Maar sneller is alleen beter als de antwoorden goed blijven, en dat zie je
-pas als je het meet: `.venv/bin/python -m assistent.meet` stelt dezelfde vragen aan Opus en Sonnet,
-met en zonder nadenken, en laat tijd, kosten én antwoorden zien.
+bovendien goedkoper. Maar sneller is alleen beter als de antwoorden goed blijven. Dus eerst
+gemeten met `.venv/bin/python -m assistent.meet`, op de Pi (vier vragen per instelling):
+
+| Instelling | Mediaan | Langzaamst | Per vraag |
+|---|---|---|---|
+| Sonnet 5.5, adaptief | 4,4 s | 5,4 s | $ 0,0054 |
+| Opus 5.5, adaptief | 4,5 s | 5,5 s | $ 0,0100 |
+| Sonnet 5.5, tussen_tools | 4,9 s | 13,4 s | $ 0,0054 |
+
+Wat de meting leerde:
+
+- **Opus was helemaal niet zo traag.** 4,5 seconden, niet 21,9. Die eerste vraag was één meting,
+  en één meting is geen meting: de eerste verbinding, een lege cache of gewoon een trage keer.
+- **Zonder nadenken was niet sneller.** Op effort `low` slaat Sonnet het nadenken bij simpele
+  vragen meestal al over (dat staat ook in Anthropic's documentatie). `tussen_tools` won dus niets,
+  en had de traagste uitschieter.
+- **Het echte verschil is de prijs.** Sonnet is even snel en kost de helft.
+
+Opnieuw meten kan altijd, bijvoorbeeld als er een nieuw model is.
 
 ## Het scherm
 

@@ -73,7 +73,7 @@ def test_tool_ronde_door_de_echte_bibliotheek(met_server):
 
     eerste, tweede = (v["body"] for v in verzoeken)
     assert verzoeken[0]["koppen"]["anthropic-beta"] == "server-side-fallback-2026-07-01"
-    assert eerste["model"] == "claude-opus-5-5" and eerste["fallbacks"] == "default"
+    assert eerste["model"] == "claude-sonnet-5-5" and eerste["fallbacks"] == "default"
     assert [t["name"] for t in eerste["tools"]] == ["agenda_lezen", "afspraak_voorstellen", "onthouden_voorstellen", "vergeten_voorstellen"]
     # Het denkblok gaat ongewijzigd terug, en de tool_use krijgt zijn tool_result.
     assert tweede["messages"][1]["content"][0] == {"type": "thinking", "thinking": "", "signature": "sig-1"}
@@ -87,7 +87,7 @@ def test_tool_ronde_door_de_echte_bibliotheek(met_server):
             api_fout(400, "invalid_request_error", "Your credit balance is too low to access the Anthropic API."),
             "Er staat geen tegoed meer op je Anthropic-account",
         ),
-        (api_fout(404, "not_found_error", "model: claude-opus-5-5"), "Ik kan het model claude-opus-5-5 niet vinden"),
+        (api_fout(404, "not_found_error", "model: claude-sonnet-5-5"), "Ik kan het model claude-sonnet-5-5 niet vinden"),
         (api_fout(401, "authentication_error", "invalid x-api-key"), "Mijn API-sleutel wordt geweigerd"),
         (api_fout(400, "invalid_request_error", "tools.1: iets onverwachts"), "Er ging iets mis bij het nadenken"),
         (api_fout(529, "overloaded_error", "Overloaded"), "Claude heeft op dit moment een storing"),
