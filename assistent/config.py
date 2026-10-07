@@ -33,6 +33,22 @@ def _kommagetal(naam: str, standaard: float) -> float:
     return float(waarde) if waarde else standaard
 
 
+def _lijst(naam: str) -> tuple[str, ...]:
+    """Een lijst met komma's ertussen."""
+    return tuple(deel.strip() for deel in _tekst(naam).split(",") if deel.strip())
+
+
+def _abonnementen() -> tuple[tuple[str, str], ...]:
+    """AGENDA_ABONNEMENTEN=Hogeschool=webcal://...,Voetbal=https://..."""
+    uit = []
+    for deel in _lijst("AGENDA_ABONNEMENTEN"):
+        naam, _, url = deel.partition("=")
+        if not naam.strip() or not url.strip().startswith(("webcal://", "https://", "http://")):
+            raise ValueError(f"AGENDA_ABONNEMENTEN: '{deel}' moet naam=link zijn")
+        uit.append((naam.strip(), url.strip()))
+    return tuple(uit)
+
+
 def _ja(naam: str, standaard: bool) -> bool:
     waarde = _tekst(naam).lower()
     if not waarde:
@@ -82,8 +98,11 @@ class Instellingen:
     calendar_backend: str = "mock"  # mock | icloud
     icloud_gebruiker: str = ""
     icloud_wachtwoord: str = ""
-    icloud_agenda: str = ""  # naar welke agenda geschreven wordt
+    icloud_agenda: str = ""  # de standaardagenda; per afspraak kiest Bongo zelf de agenda die past
     icloud_lees_agendas: tuple[str, ...] = ()  # leeg = alle agenda's lezen
+    icloud_niet_lezen: tuple[str, ...] = ()  # deze agenda's niet (bijvoorbeeld het rooster van iemand anders)
+    # Abonnementen (alleen lezen), als (naam, link). Die zitten niet in iCloud's CalDAV.
+    abonnementen: tuple[tuple[str, str], ...] = ()
 
     # Beslispunt 1: gespreksgeheugen
     gespreksgeheugen: str = "stilte"  # stilte | laatste_n | samenvatten
@@ -127,8 +146,6 @@ class Instellingen:
 
 def laad_instellingen() -> Instellingen:
     data_dir = _pad("DATA_DIR", ROOT / "data")
-    lees = tuple(a.strip() for a in _tekst("ICLOUD_READ_CALENDARS").split(",") if a.strip())
-    extra_net = tuple(n.strip() for n in _tekst("EXTRA_NETWERKEN").split(",") if n.strip())
     return Instellingen(
         anthropic_api_key=_tekst("ANTHROPIC_API_KEY"),
         anthropic_workspace_id=_tekst("ANTHROPIC_WORKSPACE_ID"),
@@ -147,7 +164,9 @@ def laad_instellingen() -> Instellingen:
         icloud_gebruiker=_tekst("ICLOUD_USERNAME"),
         icloud_wachtwoord=_tekst("ICLOUD_APP_PASSWORD"),
         icloud_agenda=_tekst("ICLOUD_CALENDAR_NAME"),
-        icloud_lees_agendas=lees,
+        icloud_lees_agendas=_lijst("ICLOUD_READ_CALENDARS"),
+        icloud_niet_lezen=_lijst("ICLOUD_NIET_LEZEN"),
+        abonnementen=_abonnementen(),
         gespreksgeheugen=_tekst("GESPREKSGEHEUGEN", "stilte").lower(),
         stilte_minuten=_getal("GESPREK_STILTE_MINUTEN", 10),
         max_beurten=_getal("GESPREK_MAX_BEURTEN", 20),
@@ -156,7 +175,7 @@ def laad_instellingen() -> Instellingen:
         toegang=_tekst("WEB_TOEGANG", "pin").lower(),
         pin=_tekst("WEB_PIN"),
         tailscale_toegestaan=_ja("TAILSCALE_TOEGESTAAN", False),
-        extra_netwerken=extra_net,
+        extra_netwerken=_lijst("EXTRA_NETWERKEN"),
         stem_bevestigen=_ja("STEM_BEVESTIGEN", False),
         ochtend_tijd=_tekst("OCHTEND_TIJD", "07:30"),
         ochtend_uitspreken=_ja("OCHTEND_UITSPREKEN", False),

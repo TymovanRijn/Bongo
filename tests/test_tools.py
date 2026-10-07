@@ -18,14 +18,19 @@ def test_agenda_lezen_geeft_afspraken_als_json(o):
     o.agenda.voeg_toe("Kapper", _t("2030-03-04T10:00"), _t("2030-03-04T10:30"), locatie="Dorpsstraat 1")
     res = o.tools.voer_uit("agenda_lezen", {"van": "2030-03-04", "tot": "2030-03-04"})
     assert not res.is_fout
-    assert json.loads(res.inhoud) == [
-        {"wanneer": "maandag 4 maart 2030, 10:00-10:30", "titel": "Kapper", "locatie": "Dorpsstraat 1", "agenda": "Mock"}
-    ]
+    assert json.loads(res.inhoud) == {
+        "afspraken": [
+            {"wanneer": "maandag 4 maart 2030, 10:00-10:30", "titel": "Kapper", "locatie": "Dorpsstraat 1", "agenda": "Privé"}
+        ],
+        "agendas": ["Privé", "Werk", "School"],  # zodat Claude weet waarin hij kan voorstellen
+        "standaard_agenda": "Privé",
+    }
 
 
 def test_agenda_lezen_zonder_afspraken(o):
     res = o.tools.voer_uit("agenda_lezen", {"van": "2030-03-05", "tot": "2030-03-06"})
-    assert res.inhoud.startswith("Geen afspraken")
+    uit = json.loads(res.inhoud)
+    assert uit["afspraken"] == [] and uit["uitleg"].startswith("Geen afspraken") and uit["agendas"]
 
 
 @pytest.mark.parametrize(
@@ -47,9 +52,24 @@ def test_afspraak_voorstellen_zet_niets_in_de_agenda(o):
     assert "NOG NIET" in res.inhoud
     [voorstel] = o.wachtrij.open()
     assert res.voorstel_ids == [voorstel.id]
-    assert voorstel.samenvatting == "Afspraak: Tandarts, maandag 4 maart 2030, 10:00-10:30, Centrum"
+    assert voorstel.samenvatting == "Afspraak: Tandarts, maandag 4 maart 2030, 10:00-10:30, Centrum (agenda Privé)"
     assert voorstel.gegevens["start"] == "2030-03-04T10:00:00+01:00"
     assert o.agenda.afspraken(_t("2030-03-04T00:00"), _t("2030-03-05T00:00")) == []
+
+
+def test_afspraak_in_de_agenda_die_erbij_past(o):
+    [vid] = o.tools.voer_uit("afspraak_voorstellen", _afspraak(titel="Tentamen", agenda="school")).voorstel_ids
+    v = o.wachtrij.get(vid)
+    assert v.gegevens["agenda"] == "School" and v.samenvatting.endswith("(agenda School)")  # hoofdletters maken niet uit
+    o.wachtrij.approve(vid)
+    [a] = o.agenda.afspraken(_t("2030-03-04T00:00"), _t("2030-03-05T00:00"))
+    assert a.titel == "Tentamen" and a.agenda == "School"
+
+
+def test_afspraak_in_een_agenda_die_niet_bestaat(o):
+    res = o.tools.voer_uit("afspraak_voorstellen", _afspraak(agenda="Rooster Iris"))
+    assert res.is_fout and "Rooster Iris" in res.inhoud and "Privé, Werk, School" in res.inhoud
+    assert o.wachtrij.open() == []  # meteen gezegd, niet pas als Tymo op "ja" drukt
 
 
 def test_hele_dag_eindigt_aan_het_eind_van_de_laatste_dag(o):

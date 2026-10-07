@@ -34,6 +34,7 @@ in de webapp, op het touchscreen (twee keer tikken) of met `/ja` in de terminal.
 | `deploy/` | Automatisch starten op de Pi |
 | `docs/beslispunten.md` | De keuzes (gespreksgeheugen, toegang, spraak, model, ...) en waarom |
 | `docs/spraak.md` | Hoe de spraak werkt, en de microfoon en luidspreker aansluiten |
+| `docs/agenda.md` | Je iCloud-agenda's en abonnementen koppelen |
 | `docs/hardware.md` | Wat er in en aan de Pi zit (fase 0) |
 | `docs/oefeningen.md` | Echte problemen uit deze code, met uitwerking |
 
@@ -69,8 +70,8 @@ Met de kern aan:
   `.venv/bin/python -m assistent.kern koppel "iPad"`. Die link werkt één keer, 24 uur lang.
 - **Apparaat kwijt?** Meer > Apparaten > Ontkoppel, of `python -m assistent.kern apparaten` en `ontkoppel <id>`.
 
-Standaard gebruikt Bongo een nep-agenda (`data/mock_agenda.json`). Voor je echte agenda zet je
-`CALENDAR_BACKEND=icloud` en de iCloud-gegevens in `.env` (zie `docs/beslispunten.md`, punt 3).
+Standaard gebruikt Bongo een nep-agenda (`data/mock_agenda.json`). Je echte iCloud-agenda's
+koppelen, en abonnementen zoals een lesrooster: zie `docs/agenda.md`.
 
 ## Altijd aan (op de Pi)
 

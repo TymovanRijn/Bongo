@@ -24,8 +24,9 @@ def maak_uitvoerders(agenda: AgendaBackend, geheugen: Geheugen, bij_geheugen_wij
             notitie=g.get("notitie"),
             hele_dag=bool(g.get("hele_dag")),
             uid=g.get("uid"),
+            agenda=g.get("agenda"),  # leeg bij voorstellen van voor de agendakeuze: dan de standaard
         )
-        return f"Toegevoegd aan de agenda (uid {uid})"
+        return f"Toegevoegd aan {g.get('agenda') or 'de agenda'} (uid {uid})"
 
     def onthouden(g: dict) -> str:
         regel = geheugen.voeg_toe(g["feit"])

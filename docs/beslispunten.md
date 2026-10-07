@@ -64,17 +64,28 @@ aanvaardbaar; via Tailscale is het verkeer wel versleuteld.
 
 **Te doen voor Tymo:** zet een pincode van liefst zes cijfers in `.env`: `WEB_PIN=......`
 
-## 3. Naar welke agenda schrijft Bongo? (gereconstrueerd)
+## 3. Naar welke agenda schrijft Bongo?
 
-Dit nummer kwam nergens in de code voor. Het enige deel van de instellingen zonder nummer is de
-agenda, dus ik vermoed dat het daarover ging.
+**Keuze (aangepast op Tymo's verzoek): Bongo leest al je agenda's en kiest per afspraak zelf de
+agenda die erbij past. `ICLOUD_CALENDAR_NAME` is alleen nog de standaard, voor als er geen
+duidelijk past.**
 
-**Advies: maak in iCloud een aparte agenda "Bongo" en zet `ICLOUD_CALENDAR_NAME=Bongo`. Laat
-`ICLOUD_READ_CALENDARS` leeg, zodat hij alle agenda's leest.**
+Eerst adviseerde ik een aparte agenda "Bongo": alles wat hij toevoegt heeft dan een eigen kleur, en
+gaat er iets mis, dan gooi je die ene agenda weg. Maar Tymo wil dat Bongo dingen gewoon in zijn
+eigen agenda's zet, en dat is ook logischer: een training hoort in Sport, een tentamen in School.
 
-Waarom een aparte agenda: alles wat Bongo toevoegt, heeft dan een eigen kleur op de iPhone. Je ziet
-meteen wat van hem komt, en gaat er iets mis, dan gooi je die ene agenda weg zonder je eigen
-afspraken te raken. Afspraken in een aparte agenda tellen gewoon mee als je kijkt of je vrij bent.
+Waarom dat veilig genoeg is: niets komt in een agenda zonder dat Tymo het voorstel goedkeurt, en
+in het voorstel staat in welke agenda het komt. Elke afspraak van Bongo heeft bovendien een uid die
+eindigt op `@bongo`, dus ze zijn later altijd terug te vinden.
+
+Twee grenzen:
+
+- Bongo schrijft alleen in agenda's die hij ook leest. Zo kan hij na een stroomstoring nakijken of
+  een afspraak er al in stond (`Wachtrij.herstel_onderbroken`).
+- Abonnementen (zoals een lesrooster) kan hij alleen lezen, via hun link. Die zitten niet in
+  iCloud's CalDAV.
+
+Hoe je het instelt: `docs/agenda.md`.
 
 ## 4. Mag een hardop "ja" een voorstel goedkeuren?
 

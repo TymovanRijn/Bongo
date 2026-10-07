@@ -32,7 +32,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .brain import BreinFout
-from .calendar_backend import AgendaFout
+from .calendar_backend import AgendaFout, agenda_overzicht, maak_agenda
 from .config import Instellingen, laad_instellingen
 from .db import Database
 from .opbouw import Onderdelen, maak_onderdelen, stel_logging_in
@@ -408,8 +408,19 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("apparaten", help="laat de gekoppelde apparaten zien")
     w = sub.add_parser("ontkoppel", help="ontkoppel een apparaat")
     w.add_argument("id", help="de id uit 'apparaten'")
+    sub.add_parser("agendas", help="laat zien welke agenda's Bongo leest en waarin hij mag schrijven")
     args = parser.parse_args(argv)
     inst = laad_instellingen()
+
+    if args.opdracht == "agendas":
+        try:
+            agenda = maak_agenda(inst)
+            print(f"Agenda: {agenda.naam}")
+            print("\n".join(agenda_overzicht(agenda, datetime.now(ZoneInfo(inst.tijdzone)))))
+        except AgendaFout as e:
+            print(f"Dat lukt niet: {e}")
+            return 1
+        return 0
 
     if args.opdracht in ("koppel", "apparaten", "ontkoppel"):
         poort = Poortwachter(inst, Database(inst.db_pad))
