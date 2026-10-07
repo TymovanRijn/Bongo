@@ -93,6 +93,15 @@ mkdir -p ~/.config/autostart
 cp deploy/bongo-kiosk.desktop ~/.config/autostart/
 ```
 
+Het scherm meteen starten, zonder opnieuw in te loggen: open een terminal óp de Pi en typ
+`~/Home_Assistant/deploy/kiosk.sh &`. Via SSH vanaf je laptop: `DISPLAY=:0 ~/Home_Assistant/deploy/kiosk.sh &`.
+Hij wacht tot de kern draait en opent dan Bongo's gezicht op het hele scherm.
+Weer weg: Alt+F4 op een toetsenbord, of `pkill -f bongo-kiosk`.
+
+Start het gezicht altijd met `kiosk.sh`, niet door zelf Chromium te openen. Het script zet
+Chromium in kiosk-stand (hele scherm, geen balken) met een eigen profiel, zodat dat ook werkt als
+Chromium al openstaat.
+
 Staat de projectmap niet in `~/Home_Assistant`? Pas dan de paden aan in beide bestanden.
 
 ## Testen
