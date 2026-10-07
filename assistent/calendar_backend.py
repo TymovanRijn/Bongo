@@ -51,6 +51,7 @@ class AgendaBackend(Protocol):
         locatie: str | None = None,
         notitie: str | None = None,
         hele_dag: bool = False,
+        uid: str | None = None,
     ) -> str: ...
 
 
@@ -105,8 +106,8 @@ class MockAgenda:
             alles = self._laad()
         return sorted((a for a in alles if _overlapt(a, van, tot)), key=lambda a: a.start)
 
-    def voeg_toe(self, titel, start, eind, locatie=None, notitie=None, hele_dag=False) -> str:
-        uid = f"mock-{uuid.uuid4().hex[:8]}"
+    def voeg_toe(self, titel, start, eind, locatie=None, notitie=None, hele_dag=False, uid=None) -> str:
+        uid = uid or f"mock-{uuid.uuid4().hex[:8]}"
         with self._slot:
             alles = self._laad()
             alles.append(Afspraak(titel, start, eind, hele_dag, locatie, notitie, "Mock", uid))
@@ -208,7 +209,7 @@ class ICloudAgenda:
             self._cache[sleutel] = (time.monotonic(), uit)
             return list(uit)
 
-    def voeg_toe(self, titel, start, eind, locatie=None, notitie=None, hele_dag=False) -> str:
+    def voeg_toe(self, titel, start, eind, locatie=None, notitie=None, hele_dag=False, uid=None) -> str:
         from icalendar import Calendar, Event
 
         with self._slot:
@@ -218,7 +219,7 @@ class ICloudAgenda:
                 namen = ", ".join(naam or "?" for _, naam in agendas)
                 raise AgendaFout(f"Agenda '{self.schrijf_agenda}' niet gevonden. Beschikbaar: {namen}")
 
-            uid = f"{uuid.uuid4()}@bongo"
+            uid = uid or f"{uuid.uuid4()}@bongo"
             ev = Event()
             ev.add("uid", uid)
             ev.add("dtstamp", datetime.now(timezone.utc))

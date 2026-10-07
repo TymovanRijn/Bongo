@@ -171,6 +171,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{inst.assistent_naam} kan niet starten: {e}", file=sys.stderr)
         return 1
     terminal = Terminal(o)
+    for v in o.wachtrij.herstel_onderbroken():
+        print(f"Let op: voorstel #{v.id} werd onderbroken door een herstart en staat nu op '{v.status}': {v.samenvatting}")
 
     if args.vraag:
         print(terminal.verwerk(" ".join(args.vraag)) or "")

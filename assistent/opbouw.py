@@ -13,7 +13,7 @@ from .brain import Brain
 from .calendar_backend import AgendaBackend, maak_agenda
 from .config import Instellingen
 from .db import Database
-from .executors import maak_uitvoerders
+from .executors import maak_controles, maak_uitvoerders
 from .geheugen import Geheugen
 from .logboek import Logboek
 from .tools import ToolUitvoerder
@@ -38,7 +38,7 @@ def maak_onderdelen(inst: Instellingen, client=..., agenda: AgendaBackend | None
     logboek = Logboek(db)
     geheugen = Geheugen(inst.geheugen_pad)
     agenda = agenda or maak_agenda(inst)
-    wachtrij = Wachtrij(db, maak_uitvoerders(agenda, geheugen), bij_wijziging=bij_wijziging)
+    wachtrij = Wachtrij(db, maak_uitvoerders(agenda, geheugen), bij_wijziging=bij_wijziging, controles=maak_controles(agenda, geheugen))
     tools = ToolUitvoerder(agenda, wachtrij, geheugen, ZoneInfo(inst.tijdzone))
     if client is ...:
         client = anthropic.Anthropic(api_key=inst.anthropic_api_key, timeout=60.0) if inst.anthropic_api_key else None

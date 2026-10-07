@@ -216,3 +216,38 @@ def test_eenmalig_raakt_het_gesprek_niet(maak):
     assert tekst_ == "Goedemorgen!" and kosten > 0
     assert o.brain.history == voor
     assert "tools" not in nep.verzoeken[1]
+
+
+# ---- voorstellen uit een mislukte beurt ---------------------------------------------------
+def test_voorstel_uit_een_mislukte_beurt_vervalt(maak):
+    o, nep = maak([tool("afspraak_voorstellen", AFSPRAAK), geen_verbinding()])
+    with pytest.raises(BreinFout):
+        o.brain.vraag("zet de tandarts erin")
+    [v] = o.wachtrij.afgehandeld()
+    assert v.status == "vervallen"
+    assert o.wachtrij.open() == []
+    assert o.brain._bekende_status == {}
+
+
+def test_al_goedgekeurd_voorstel_uit_een_mislukte_beurt_blijft_gevolgd(maak, monkeypatch):
+    o, nep = maak([tool("afspraak_voorstellen", AFSPRAAK), geen_verbinding(), tekst("ok")])
+    echte_voer_uit = o.brain.tools.voer_uit
+
+    def en_meteen_goedkeuren(*a, **k):
+        res = echte_voer_uit(*a, **k)
+        for vid in res.voorstel_ids:
+            o.wachtrij.approve(vid, via="snelle Tymo")
+        return res
+
+    monkeypatch.setattr(o.brain.tools, "voer_uit", en_meteen_goedkeuren)
+    with pytest.raises(BreinFout):
+        o.brain.vraag("zet de tandarts erin")
+    o.brain.vraag("en?")
+    assert "is goedgekeurd en uitgevoerd" in nep.verzoeken[-1]["messages"][-1]["content"][-1]["text"]
+
+
+def test_kosten_komen_van_de_eigen_aanroep(maak):
+    o, nep = maak([tool("agenda_lezen", AGENDA_VRAAG), tekst("klaar"), tekst("Goedemorgen")])
+    antwoord = o.brain.vraag("wat heb ik?")
+    _, ochtend = o.brain.eenmalig("ochtend", doel="ochtendoverzicht")
+    assert antwoord.kosten_usd == pytest.approx(2 * ochtend)  # twee aanroepen tegen één

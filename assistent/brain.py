@@ -26,6 +26,7 @@ from .config import Instellingen
 from .geheugen import Geheugen
 from .logboek import Logboek
 from .tools import ToolUitvoerder, datum_uitgeschreven
+from .wachtrij import WachtrijFout
 
 log = logging.getLogger(__name__)
 
@@ -148,7 +149,7 @@ class Brain:
         self._laatste_activiteit: datetime | None = None
         self._samenvatting: str | None = None
         self._bekende_status: dict[int, str] = {}
-        self._laatste_kosten = 0.0
+        self._beurt_voorstellen: list[int] = []
         self.nieuw_gesprek("start")
 
     # ---- gesprek ---------------------------------------------------------------------
@@ -214,7 +215,7 @@ class Brain:
             # Dezelfde systeemprompt en tools als de rest van het gesprek: zonder tools weigert
             # de API een geschiedenis met tool_use, en de denkblokken zijn eraan gebonden.
             # tool_choice "none" zorgt dat hij alleen tekst schrijft.
-            resp = self._roep_api(self.history + [verzoek], doel="samenvatting", tool_choice={"type": "none"})
+            resp, _ = self._roep_api(self.history + [verzoek], doel="samenvatting", tool_choice={"type": "none"})
             tekst = "".join(b.get("text", "") for b in map(_als_dict, resp.content) if b.get("type") == "text").strip()
         except (BreinFout, anthropic.BadRequestError):
             tekst = ""
@@ -259,7 +260,12 @@ class Brain:
         met_tools: bool = True,
         systeem: list[dict] | None = None,
         tool_choice: dict | None = None,
-    ):
+    ) -> tuple[Any, float]:
+        """Eén aanroep van Claude. Geeft het antwoord en wat die aanroep kostte.
+
+        De kosten gaan als returnwaarde terug en niet via `self`: `eenmalig()` (het
+        ochtendoverzicht) en `vraag()` kunnen tegelijk vanuit verschillende threads draaien.
+        """
         kwargs: dict[str, Any] = {
             "model": self.inst.model,
             "max_tokens": self.inst.max_tokens,
@@ -301,8 +307,8 @@ class Brain:
             raise BreinFout("Ik kan het internet niet bereiken, dus ik kan nu even niet nadenken.", str(e)) from e
         ms = int((time.monotonic() - begin) * 1000)
         model = getattr(resp, "model", None) or self.inst.model
-        self._laatste_kosten = self.logboek.verbruik(model, resp.usage, doel, ms)
-        return resp
+        kosten = self.logboek.verbruik(model, resp.usage, doel, ms)
+        return resp, kosten
 
     # ---- de vraag ---------------------------------------------------------------------
     def _statuswijzigingen(self) -> list[str]:
@@ -313,7 +319,13 @@ class Brain:
             except Exception:
                 continue
             if v.status != oud and v.status != "bezig":
-                woorden = {"uitgevoerd": "goedgekeurd en uitgevoerd", "afgewezen": "afgewezen", "mislukt": "goedgekeurd, maar mislukt"}
+                woorden = {
+                    "uitgevoerd": "goedgekeurd en uitgevoerd",
+                    "afgewezen": "afgewezen",
+                    "mislukt": "goedgekeurd, maar mislukt",
+                    "onbekend": "goedgekeurd, maar onderbroken door een herstart; of het gelukt is, is onbekend",
+                    "vervallen": "vervallen",
+                }
                 regels.append(f"voorstel #{vid} is {woorden.get(v.status, v.status)}")
                 self._bekende_status[vid] = v.status
         return regels
@@ -345,6 +357,7 @@ class Brain:
 
             bewaard = len(self.history)
             oude_versie = self._geheugen_versie
+            self._beurt_voorstellen = []
             self.history.append(self._bouw_vraag(tekst, bron, nu))
             if self.geheugen.versie() != self._geheugen_versie and bewaard > 0:
                 self._meld_geheugen()
@@ -369,10 +382,26 @@ class Brain:
                     # elke volgende vraag.
                     del self.history[bewaard:]
                     self._geheugen_versie = oude_versie
+                    self._laat_voorstellen_vervallen()
             self._laatste_activiteit = nu
             antwoord.ms = int((time.monotonic() - begin) * 1000)
             self.logboek.schrijf("antwoord", antwoord.tekst, gesprek=self.gesprek_id, bron=bron)
             return antwoord
+
+    def _laat_voorstellen_vervallen(self) -> None:
+        """Voorstellen uit een mislukte beurt kent Claude niet meer (die beurt is weg), en
+        Tymo kreeg een foutmelding in plaats van een voorstel. Vraagt hij het opnieuw, dan zou
+        hetzelfde voorstel er dubbel staan. Daarom vervallen ze, als ze nog open zijn."""
+        for vid in self._beurt_voorstellen:
+            try:
+                self.tools.wachtrij.laat_vervallen(vid, "De beurt waarin dit voorstel ontstond, ging mis.")
+            except WachtrijFout:
+                # Al goedgekeurd of afgewezen (in de seconden tussen voorstel en fout). Dan
+                # houden we hem bij, zodat Claude bij de volgende vraag hoort wat er gebeurde.
+                continue
+            except Exception:
+                log.exception("kon voorstel #%s niet laten vervallen", vid)
+            self._bekende_status.pop(vid, None)
 
     def _log_fout(self, fout: BreinFout, bron: str) -> None:
         self.logboek.schrijf("fout", {"melding": fout.melding, "technisch": fout.technisch}, gesprek=self.gesprek_id, bron=bron)
@@ -393,7 +422,7 @@ class Brain:
         opnieuw_geprobeerd = False
         for _ in range(self.MAX_RONDES):
             try:
-                resp = self._roep_api(self.history, doel="gesprek")
+                resp, kosten = self._roep_api(self.history, doel="gesprek")
             except anthropic.BadRequestError as e:
                 bericht = str(e).lower()
                 if not opnieuw_geprobeerd and ("signature" in bericht or "thinking" in bericht):
@@ -403,7 +432,7 @@ class Brain:
                     opnieuw_geprobeerd = True
                     continue
                 raise BreinFout("Er ging iets mis bij het nadenken.", str(e)) from e
-            antwoord.kosten_usd += getattr(self, "_laatste_kosten", 0.0)
+            antwoord.kosten_usd += kosten
             blokken = [_als_dict(b) for b in resp.content]
 
             if resp.stop_reason == "refusal":
@@ -439,6 +468,7 @@ class Brain:
             ms = int((time.monotonic() - begin) * 1000)
             for vid in res.voorstel_ids:
                 self._bekende_status[vid] = "open"
+                self._beurt_voorstellen.append(vid)
             antwoord.voorstel_ids += res.voorstel_ids
             aanroep = {"tool": blok["name"], "invoer": blok.get("input"), "resultaat": res.inhoud[:2000], "fout": res.is_fout, "ms": ms}
             antwoord.tool_aanroepen.append(aanroep)
@@ -455,10 +485,10 @@ class Brain:
         nu = self.klok()
         bericht = {"role": "user", "content": f"[{datum_uitgeschreven(nu.date())}, {nu:%H:%M}]\n{opdracht}"}
         try:
-            resp = self._roep_api([bericht], doel=doel, met_tools=False, systeem=self._maak_systeem())
+            resp, kosten = self._roep_api([bericht], doel=doel, met_tools=False, systeem=self._maak_systeem())
         except anthropic.BadRequestError as e:
             raise BreinFout("Er ging iets mis bij het nadenken.", str(e)) from e
         if resp.stop_reason == "refusal":
             raise BreinFout("Daar kan ik je helaas niet mee helpen.", "stop_reason=refusal")
         tekst = "\n".join(b["text"] for b in map(_als_dict, resp.content) if b.get("type") == "text").strip()
-        return tekst, getattr(self, "_laatste_kosten", 0.0)
+        return tekst, kosten

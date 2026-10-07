@@ -126,3 +126,33 @@ def _afspraak(**anders):
     }
     invoer.update(anders)
     return invoer
+
+
+# ---- herstel met de echte controles ------------------------------------------------------
+def _stroomstoring(o, voorstel_id):
+    with o.db.verbinding() as con:
+        con.execute("UPDATE voorstellen SET status = 'bezig', afgehandeld = '2026-01-01T00:00:00+01:00' WHERE id = ?", (voorstel_id,))
+
+
+def test_herstel_afspraak_die_al_in_de_agenda_stond(o):
+    [vid] = o.tools.voer_uit("afspraak_voorstellen", _afspraak()).voorstel_ids
+    v = o.wachtrij.get(vid)
+    o.agenda.voeg_toe("Tandarts", _t("2030-03-04T10:00"), _t("2030-03-04T10:30"), uid=v.gegevens["uid"])
+    _stroomstoring(o, vid)
+    assert [h.status for h in o.wachtrij.herstel_onderbroken()] == ["uitgevoerd"]
+
+
+def test_herstel_afspraak_die_er_nog_niet_in_stond(o):
+    [vid] = o.tools.voer_uit("afspraak_voorstellen", _afspraak()).voorstel_ids
+    _stroomstoring(o, vid)
+    assert [h.status for h in o.wachtrij.herstel_onderbroken()] == ["open"]
+    o.wachtrij.approve(vid)
+    afspraken = o.agenda.afspraken(_t("2030-03-04T00:00"), _t("2030-03-05T00:00"))
+    assert [a.uid for a in afspraken] == [o.wachtrij.get(vid).gegevens["uid"]]  # precies één keer
+
+
+def test_herstel_onthouden(o):
+    [vid] = o.tools.voer_uit("onthouden_voorstellen", {"feit": "Houdt van thee"}).voorstel_ids
+    o.geheugen.voeg_toe("Houdt van thee")  # het lukte nog net voor de stroom uitviel
+    _stroomstoring(o, vid)
+    assert [h.status for h in o.wachtrij.herstel_onderbroken()] == ["uitgevoerd"]

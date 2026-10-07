@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
@@ -216,6 +217,9 @@ class ToolUitvoerder:
         notitie = (invoer.get("notitie") or "").strip() or None
         samenvatting = f"Afspraak: {titel}, {wanneer}" + (f", {locatie}" if locatie else "")
         gegevens = {
+            # De uid ligt nu al vast, zodat we na een stroomstoring kunnen nagaan of de
+            # afspraak er al in staat (zie Wachtrij.herstel_onderbroken).
+            "uid": f"{uuid.uuid4()}@bongo",
             "titel": titel,
             "start": start.isoformat(),
             "eind": eind.isoformat(),
