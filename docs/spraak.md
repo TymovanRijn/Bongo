@@ -10,10 +10,17 @@ tik op het gezicht
   -> Silero VAD hoort wanneer je klaar bent     (op de Pi; zit in faster-whisper)
   -> microfoon uit
   -> Whisper maakt er tekst van                 (op de Pi: er gaat geen geluid naar internet)
-  -> Claude denkt na                            (alleen de tekst gaat naar Anthropic)
-  -> Piper maakt er spraak van, zin voor zin    (op de Pi)
+  -> Claude denkt na en schrijft het antwoord   (alleen de tekst gaat naar Anthropic)
+     ... zodra zijn eerste zin af is:
+  -> Piper maakt er spraak van                  (op de Pi)
   -> luidspreker                                (aplay)
+     ... terwijl Claude de volgende zin schrijft
 ```
+
+Bongo wacht dus niet tot Claude het hele antwoord af heeft: Claude's antwoord komt in stukjes
+binnen (streaming), `spraak/zinnen.py` knipt het in hele zinnen, en elke zin gaat naar de
+luidspreker zodra hij af is. Zegt Claude eerst "even kijken" en zoekt hij dan in de agenda,
+dan hoor je dat ook meteen.
 
 Het gezicht laat zien waar hij is: grote ogen met een gele gloed (luisteren), turen
 (denken), lachende ogen en een wippende neus (praten). Wat hij zegt, staat eronder.
@@ -27,7 +34,8 @@ Eén tik doet steeds het logische:
 | praten | stil maar |
 
 De code staat in `assistent/spraak/`: `audio.py` (microfoon, luidspreker, einde van je zin),
-`verstaan.py` (Whisper), `stem.py` (Piper) en `keten.py` (alles in de goede volgorde).
+`verstaan.py` (Whisper), `stem.py` (Piper), `zinnen.py` (tekst in zinnen knippen) en `keten.py`
+(alles in de goede volgorde).
 
 ## Waarom zo
 
@@ -43,7 +51,11 @@ De code staat in `assistent/spraak/`: `audio.py` (microfoon, luidspreker, einde 
 - **Alleen het scherm van de Pi kan de microfoon aanzetten.** De webapp op je telefoon niet:
   anders kan iemand die bij de webapp komt, op afstand meeluisteren in je kamer.
 - **Een piepje** als de microfoon aangaat, zodat je weet wanneer je kunt praten.
-- **Zin voor zin praten.** Piper maakt de eerste zin, die klinkt al terwijl de rest nog gemaakt wordt.
+- **Zin voor zin praten.** De eerste zin klinkt al terwijl Claude de rest nog schrijft. Hoeveel
+  dat scheelt, hangt af van hoe lang het antwoord is: bij één korte zin niets, bij drie zinnen
+  ongeveer de tijd die Claude nodig heeft voor de tweede en derde. Een vraag over de agenda heeft
+  bovendien twee rondes met Claude (eerst "ik wil in de agenda kijken", dan het antwoord), en
+  alleen de laatste ronde kan sneller.
 
 ## De microfoon aansluiten (ReSpeaker Mic Array v2.0)
 
@@ -100,9 +112,11 @@ In de webapp, onder Meer > Snelheid, staat per stap hoe lang het duurde. Lees vo
 
 - **tot_geluid**: van het einde van je zin tot Bongo begint te praten. Dat is wat jij merkt.
 - **verstaan**: Whisper. Te traag? Zet `STT_MODEL=base` (sneller, iets slordiger).
-- **nadenken**: Claude. Te traag? Meet de modellen met `.venv/bin/python -m assistent.meet`
-  en kies daarna in `.env` bijvoorbeeld `BONGO_MODEL=claude-sonnet-5-5` en `BONGO_DENKEN=tussen_tools`.
-- **eerste_zin_gemaakt**: Piper. Meestal minder dan een seconde.
+- **eerste_zin_bedacht**: tot Claude zijn eerste hele zin af heeft. Dit is het deel van het
+  nadenken dat je echt merkt.
+- **nadenken**: Claude, tot het hele antwoord af is. Het verschil met `eerste_zin_bedacht` is
+  wat streaming je oplevert.
+- **stem**: hoe lang Piper over de eerste zin doet. Meestal minder dan een seconde.
 
 ## Als het niet werkt
 

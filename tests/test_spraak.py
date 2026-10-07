@@ -2,6 +2,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 import wave
 
 import numpy as np
@@ -48,8 +49,7 @@ class NepHerkenner:
 
 class NepStem:
     def zinnen(self, tekst_):
-        for zin in tekst_.split(". "):
-            yield zin.encode(), 22050
+        yield tekst_.encode(), 22050
 
     def warm_op(self):
         pass
@@ -58,11 +58,16 @@ class NepStem:
 class NepLuidspreker:
     def __init__(self, blijft_praten=False):
         self.gespeeld = []
+        self.tijden = []  # wanneer elk stuk geluid bij de luidspreker aankwam
         self.gestopt = threading.Event()
         self.blijft_praten = blijft_praten  # praat door tot iemand stop() zegt (het piepje niet)
 
     def speel(self, stukken):
-        geluid = b" ".join(g for g, _ in stukken).decode(errors="replace")
+        delen = []
+        for g, _ in stukken:
+            self.tijden.append((time.monotonic(), g.decode(errors="replace")))
+            delen.append(g)
+        geluid = b" ".join(delen).decode(errors="replace")
         self.gespeeld.append(geluid)
         if self.blijft_praten and geluid != "piep":
             return not self.gestopt.wait(5)
@@ -106,13 +111,27 @@ def test_een_hele_beurt(spraak):
     assert s.tik() == "luisteren"
     s.wacht(5)
 
-    assert s.luidspreker.gespeeld == ["piep", "Je hebt vandaag niets Lekker rustig."]
+    assert s.luidspreker.gespeeld == ["piep", "Je hebt vandaag niets. Lekker rustig."]
     assert toestanden[0] == "luisteren" and toestanden[-1] == "rust"
     assert [t for i, t in enumerate(toestanden) if i == 0 or t != toestanden[i - 1]] == ["luisteren", "denken", "praten", "rust"]
     assert s.ondertitel == "Je hebt vandaag niets. Lekker rustig."
     assert "via spraak, antwoord extra kort" in nep.verzoeken[0]["messages"][0]["content"][-1]["text"]
     stappen = {m["stap"] for m in o.logboek.metingen_samenvatting()}
-    assert stappen == {"opnemen", "verstaan", "nadenken", "eerste_zin_gemaakt", "tot_geluid", "praten"}
+    assert stappen == {"opnemen", "verstaan", "eerste_zin_bedacht", "nadenken", "stem", "tot_geluid", "praten"}
+    assert nep.gestreamd == [True]
+
+
+def test_eerste_zin_klinkt_terwijl_claude_nog_schrijft(spraak):
+    s, o, nep, _ = spraak([tekst("Morgen heb je de tandarts. Daarna ga je sporten. Verder niets.")])
+    nep.pauze_na_zin = 0.5  # Claude doet er een halve seconde over per zin
+    s.tik()
+    s.wacht(10)
+    tijden = {zin: t for t, zin in s.luidspreker.tijden}
+    eerste, laatste = tijden["Morgen heb je de tandarts."], tijden["Verder niets."]
+    assert laatste - eerste > 0.8  # de eerste zin klonk ruim voordat Claude klaar was
+    metingen = {m["stap"]: m["gemiddeld"] for m in o.logboek.metingen_samenvatting()}
+    assert metingen["eerste_zin_bedacht"] < metingen["nadenken"] - 800
+    assert s.ondertitel == "Morgen heb je de tandarts. Daarna ga je sporten. Verder niets."
 
 
 def test_niets_gezegd(spraak):
@@ -127,7 +146,7 @@ def test_niet_verstaan(spraak):
     s.tik()
     s.wacht(5)
     assert nep.verzoeken == []
-    assert s.luidspreker.gespeeld[-1] == NIET_VERSTAAN.replace(". ", " ")
+    assert s.luidspreker.gespeeld[-1] == NIET_VERSTAAN
 
 
 def test_een_fout_van_claude_wordt_uitgesproken(spraak):

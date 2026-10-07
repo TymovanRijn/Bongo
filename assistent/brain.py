@@ -302,11 +302,17 @@ class Brain:
         met_tools: bool = True,
         systeem: list[dict] | None = None,
         tool_choice: dict | None = None,
+        bij_tekst: Callable[[str, bool], None] | None = None,
     ) -> tuple[Any, float]:
         """Eén aanroep van Claude. Geeft het antwoord en wat die aanroep kostte.
 
         De kosten gaan als returnwaarde terug en niet via `self`: `eenmalig()` (het
         ochtendoverzicht) en `vraag()` kunnen tegelijk vanuit verschillende threads draaien.
+
+        Met `bij_tekst` wordt het antwoord gestreamd: elk stukje tekst gaat meteen door
+        (`bij_tekst(stukje, False)`), en aan het eind van het bericht volgt `bij_tekst("", True)`.
+        De tools blijven precies hetzelfde als zonder streaming (dus geen eager_input_streaming):
+        een andere toollijst midden in een gesprek maakt de denkblokken ongeldig.
         """
         kwargs: dict[str, Any] = {
             "model": self.inst.model,
@@ -334,7 +340,14 @@ class Brain:
             )
         begin = time.monotonic()
         try:
-            resp = self.client.beta.messages.create(**kwargs)
+            if bij_tekst is None:
+                resp = self.client.beta.messages.create(**kwargs)
+            else:
+                with self.client.beta.messages.stream(**kwargs) as stroom:
+                    for stukje in stroom.text_stream:
+                        bij_tekst(stukje, False)
+                    resp = stroom.get_final_message()
+                bij_tekst("", True)
         except anthropic.AuthenticationError as e:
             raise BreinFout("Mijn API-sleutel wordt geweigerd. Kijk even naar de sleutel in punt env.", _api_melding(e)) from e
         except anthropic.PermissionDeniedError as e:
@@ -386,7 +399,9 @@ class Brain:
         blokken.append({"type": "text", "text": f"[{kop}]\n{tekst}"})
         return {"role": "user", "content": blokken}
 
-    def vraag(self, tekst: str, bron: str = "cli") -> Antwoord:
+    def vraag(self, tekst: str, bron: str = "cli", bij_tekst: Callable[[str, bool], None] | None = None) -> Antwoord:
+        """Stel een vraag. Met `bij_tekst` komt het antwoord stukje voor stukje binnen terwijl
+        Claude het schrijft (voor de spraak); zie `_roep_api`."""
         tekst = tekst.strip()
         if not tekst:
             raise BreinFout("Ik hoorde geen vraag.")
@@ -409,7 +424,7 @@ class Brain:
 
             gelukt = False
             try:
-                antwoord = self._lus(bron)
+                antwoord = self._lus(bron, bij_tekst)
                 gelukt = True
             except BreinFout as e:
                 self._log_fout(e, bron)
@@ -463,12 +478,12 @@ class Brain:
             self.history[-1]["content"].insert(0, {"type": "text", "text": f"[{tekst}]"})
         self._geheugen_versie = self.geheugen.versie()
 
-    def _lus(self, bron: str) -> Antwoord:
+    def _lus(self, bron: str, bij_tekst: Callable[[str, bool], None] | None = None) -> Antwoord:
         antwoord = Antwoord(tekst="", gesprek=self.gesprek_id)
         opnieuw_geprobeerd = False
         for _ in range(self.MAX_RONDES):
             try:
-                resp, kosten = self._roep_api(self.history, doel="gesprek")
+                resp, kosten = self._roep_api(self.history, doel="gesprek", bij_tekst=bij_tekst)
             except anthropic.BadRequestError as e:
                 bericht = str(e).lower()
                 if not opnieuw_geprobeerd and ("signature" in bericht or "thinking" in bericht):

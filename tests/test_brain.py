@@ -278,3 +278,20 @@ def test_tussen_tools_kan_niet_met_opus(maak):
 def test_onmogelijke_denkinstelling(maak, anders):
     with pytest.raises(ValueError):
         maak(**anders)
+
+
+# ---- streaming (voor de spraak) ----------------------------------------------------------
+def test_vraag_met_streaming(maak):
+    o, nep = maak([tool("agenda_lezen", AGENDA_VRAAG), tekst("Je agenda is leeg. Lekker rustig.")])
+    ontvangen = []
+    antwoord = o.brain.vraag("wat heb ik?", bron="spraak", bij_tekst=lambda stukje, klaar: ontvangen.append((stukje, klaar)))
+    assert nep.gestreamd == [True, True]
+    assert "".join(s for s, _ in ontvangen) == "Je agenda is leeg. Lekker rustig."
+    assert [k for _, k in ontvangen].count(True) == 2  # een einde na elk bericht van Claude
+    assert antwoord.tekst == "Je agenda is leeg. Lekker rustig."
+
+
+def test_zonder_streaming_als_niemand_meeluistert(maak):
+    o, nep = maak([tekst("Hoi")])
+    o.brain.vraag("hallo", bron="web")
+    assert nep.gestreamd == [False]

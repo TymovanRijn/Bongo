@@ -4,19 +4,24 @@ Alles gebeurt op de Pi zelf, behalve het nadenken (Claude). Er gaat dus nooit ge
 internet, alleen de tekst die Whisper ervan maakte. En de microfoon staat alleen aan tussen
 een tik op het scherm en het einde van je zin: Bongo luistert niet stiekem mee.
 
-Elke stap wordt gemeten (tabel `metingen`, zie Meer > Kosten in de webapp), zodat je ziet
+Elke stap wordt gemeten (tabel `metingen`, zie Meer > Snelheid in de webapp), zodat je ziet
 waar de tijd heen gaat. De belangrijkste: `tot_geluid`, van het einde van je zin tot het
 eerste geluid van Bongo. Dat is hoe lang het voor jou voelt.
+
+Bongo begint te praten zodra Claude zijn eerste zin af heeft, niet pas als het hele
+antwoord klaar is (zie `_antwoord_hardop`).
 """
 
 from __future__ import annotations
 
 import logging
+import queue
 import threading
 import time
 from typing import Callable, Iterable, Iterator, Protocol
 
 from ..brain import BreinFout
+from .zinnen import Zinnensplitser
 
 log = logging.getLogger(__name__)
 
@@ -174,29 +179,70 @@ class Spraak:
             self._praat(NIET_VERSTAAN, einde_zin)
             return
 
+        self._antwoord_hardop(tekst, einde_zin)
+
+    def _antwoord_hardop(self, vraag: str, einde_zin: float) -> None:
+        """Laat Claude antwoorden en spreek elke zin uit zodra hij af is.
+
+        Claude schrijft in een eigen draad, de luidspreker praat in deze draad, en een
+        wachtrij met zinnen zit ertussen. Zo klinkt de eerste zin al terwijl Claude de rest
+        nog schrijft. (Zegt Claude eerst "even kijken" en zoekt hij dan in de agenda, dan
+        hoor je dat ook meteen.)
+        """
+        zinnen: queue.Queue[str | None] = queue.Queue()
+        splitser = Zinnensplitser()
+        eerste = threading.Event()
         begin = time.monotonic()
-        try:
-            antwoord = self.brain.vraag(tekst, bron="spraak").tekst
-        except BreinFout as e:
-            antwoord = e.melding
-        self._meet("nadenken", _ms(begin))
-        self._praat(antwoord, einde_zin)
+
+        def bij_tekst(stukje: str, einde_bericht: bool) -> None:
+            for zin in splitser.klaar() if einde_bericht else splitser.voeg_toe(stukje):
+                if not eerste.is_set():
+                    eerste.set()
+                    self._meet("eerste_zin_bedacht", _ms(begin))
+                zinnen.put(zin)
+
+        def denk() -> None:
+            try:
+                antwoord = self.brain.vraag(vraag, bron="spraak", bij_tekst=bij_tekst)
+                if not eerste.is_set():
+                    zinnen.put(antwoord.tekst)  # er kwam geen tekst binnen (bijvoorbeeld een leeg antwoord)
+            except BreinFout as e:
+                zinnen.put(e.melding)
+            except Exception:
+                log.exception("nadenken mislukt")
+                zinnen.put("Er ging iets mis bij het nadenken.")
+            finally:
+                self._meet("nadenken", _ms(begin))
+                zinnen.put(None)  # klaar
+
+        threading.Thread(target=denk, name="spraak-denken", daemon=True).start()
+        self._spreek(iter(zinnen.get, None), einde_zin)
 
     def _praat(self, tekst: str, einde_zin: float | None = None) -> None:
-        self._zet("praten", tekst)
-        begin = time.monotonic()
-        afgemaakt = self.luidspreker.speel(self._gemeten(self.stem.zinnen(tekst), einde_zin))
-        self._meet("praten", _ms(begin), {"afgemaakt": afgemaakt, "tekens": len(tekst)})
+        """Spreek een tekst uit die al helemaal klaar is."""
+        self._spreek(iter([tekst]), einde_zin)
 
-    def _gemeten(self, zinnen: Iterable[tuple[bytes, int]], einde_zin: float | None) -> Iterator[tuple[bytes, int]]:
-        """Geef de zinnen door, en meet hoe lang het duurde tot de eerste klonk."""
-        begin = time.monotonic()
-        for i, zin in enumerate(zinnen):
-            if i == 0:
-                self._meet("eerste_zin_gemaakt", _ms(begin))
-                if einde_zin is not None:
-                    self._meet("tot_geluid", _ms(einde_zin))
-            yield zin
+    def _spreek(self, zinnen: Iterator[str], einde_zin: float | None = None) -> None:
+        """Spreek de zinnen uit zodra ze er zijn. De ondertitel op het scherm groeit mee."""
+        gezegd: list[str] = []
+        eerste_geluid: list[float] = []
+
+        def geluid() -> Iterator[tuple[bytes, int]]:
+            for zin in zinnen:
+                gezegd.append(zin)
+                self._zet("praten", " ".join(gezegd))
+                stem_begin = time.monotonic()
+                for stuk in self.stem.zinnen(zin):
+                    if not eerste_geluid:
+                        eerste_geluid.append(time.monotonic())
+                        self._meet("stem", _ms(stem_begin))
+                        if einde_zin is not None:
+                            self._meet("tot_geluid", _ms(einde_zin))
+                    yield stuk
+
+        afgemaakt = self.luidspreker.speel(geluid())
+        if eerste_geluid:
+            self._meet("praten", _ms(eerste_geluid[0]), {"afgemaakt": afgemaakt, "tekens": len(" ".join(gezegd))})
 
 
 def maak_spraak(o, bij_wijziging: Callable[[], None] | None = None) -> Spraak | None:

@@ -17,6 +17,8 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import re
+import time
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from zoneinfo import ZoneInfo
@@ -97,12 +99,22 @@ class NepClaude:
     def __init__(self, antwoorden=()):
         self.antwoorden = list(antwoorden)
         self.verzoeken: list[dict] = []
-        self.beta = SimpleNamespace(messages=SimpleNamespace(create=self._create))
+        self.gestreamd: list[bool] = []  # per verzoek: met streaming of niet
+        self.pauze_na_zin = 0.0  # zo lang "schrijft" hij na elke zin (om streaming te testen)
+        self.beta = SimpleNamespace(messages=SimpleNamespace(create=self._create, stream=self._stream))
 
     def zet_klaar(self, *antwoorden) -> None:
         self.antwoorden.extend(antwoorden)
 
     def _create(self, **kwargs):
+        self.gestreamd.append(False)
+        return self._antwoord(kwargs)
+
+    def _stream(self, **kwargs):
+        self.gestreamd.append(True)
+        return _NepStroom(self._antwoord(kwargs), self.pauze_na_zin)
+
+    def _antwoord(self, kwargs):
         verzoek = copy.deepcopy(kwargs)
         self.verzoeken.append(verzoek)
         self._controleer(verzoek)
@@ -142,6 +154,32 @@ class NepClaude:
                         f"messages.{i}.content.{j}: Invalid `signature` in `thinking` block. "
                         "The block is bound to a different conversation."
                     )
+
+
+class _NepStroom:
+    """Zoals client.beta.messages.stream(): de tekst komt woord voor woord binnen."""
+
+    def __init__(self, antwoord, pauze_na_zin=0.0):
+        self.antwoord = antwoord
+        self.pauze_na_zin = pauze_na_zin
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *fout):
+        return False
+
+    @property
+    def text_stream(self):
+        for blok in self.antwoord.content:
+            if blok.get("type") == "text":
+                for woord in re.findall(r"\S+\s*", blok["text"]):
+                    yield woord
+                    if woord.rstrip().endswith((".", "!", "?")):
+                        time.sleep(self.pauze_na_zin)
+
+    def get_final_message(self):
+        return self.antwoord
 
 
 # ---- een klok die de test zelf kan verzetten -------------------------------------------

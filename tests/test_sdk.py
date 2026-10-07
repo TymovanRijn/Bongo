@@ -141,3 +141,60 @@ def test_sleutel_zonder_workspace(met_server):
     )
     with pytest.raises(BreinFout, match="ANTHROPIC_WORKSPACE_ID"):
         o.brain.vraag("Wat heb ik vandaag?")
+
+
+# ---- streaming door de echte bibliotheek ---------------------------------------------------
+def stroom(blokken, stop):
+    """Een antwoord als stroom van gebeurtenissen (server-sent events), zoals de API het stuurt."""
+    gebeurtenissen = [
+        {"type": "message_start", "message": {**bericht([], None), "usage": {"input_tokens": 2500, "output_tokens": 1}}}
+    ]
+    for i, blok in enumerate(blokken):
+        if blok["type"] == "thinking":
+            gebeurtenissen += [
+                {"type": "content_block_start", "index": i, "content_block": {"type": "thinking", "thinking": "", "signature": ""}},
+                {"type": "content_block_delta", "index": i, "delta": {"type": "signature_delta", "signature": blok["signature"]}},
+            ]
+        elif blok["type"] == "text":
+            gebeurtenissen.append({"type": "content_block_start", "index": i, "content_block": {"type": "text", "text": ""}})
+            for woord in blok["text"].split(" "):
+                gebeurtenissen.append({"type": "content_block_delta", "index": i, "delta": {"type": "text_delta", "text": woord + " "}})
+        elif blok["type"] == "tool_use":
+            gebeurtenissen += [
+                {"type": "content_block_start", "index": i, "content_block": {"type": "tool_use", "id": blok["id"], "name": blok["name"], "input": {}}},
+                {"type": "content_block_delta", "index": i, "delta": {"type": "input_json_delta", "partial_json": json.dumps(blok["input"])}},
+            ]
+        gebeurtenissen.append({"type": "content_block_stop", "index": i})
+    gebeurtenissen += [
+        {"type": "message_delta", "delta": {"stop_reason": stop, "stop_sequence": None}, "usage": {"output_tokens": 80}},
+        {"type": "message_stop"},
+    ]
+    sse = "".join(f"event: {g['type']}\ndata: {json.dumps(g)}\n\n" for g in gebeurtenissen)
+    return httpx2.Response(200, headers={"content-type": "text/event-stream"}, content=sse.encode())
+
+
+def test_streaming_door_de_echte_bibliotheek(met_server):
+    o, verzoeken = met_server(
+        [
+            stroom(
+                [
+                    {"type": "thinking", "signature": "sig-1"},
+                    {"type": "text", "text": "Even kijken."},
+                    {"type": "tool_use", "id": "toolu_01", "name": "agenda_lezen", "input": {"van": "2030-03-04", "tot": "2030-03-04"}},
+                ],
+                "tool_use",
+            ),
+            stroom([{"type": "thinking", "signature": "sig-2"}, {"type": "text", "text": "Je agenda is leeg."}], "end_turn"),
+        ]
+    )
+    ontvangen = []
+    antwoord = o.brain.vraag("Wat heb ik op 4 maart 2030?", bron="spraak", bij_tekst=lambda s, klaar: ontvangen.append((s, klaar)))
+
+    assert all(v["body"]["stream"] is True for v in verzoeken)
+    assert "".join(s for s, _ in ontvangen).split() == ["Even", "kijken.", "Je", "agenda", "is", "leeg."]
+    assert antwoord.tekst == "Je agenda is leeg."
+    # De bibliotheek zette de stukjes weer in elkaar: denkblok met handtekening, tool-aanroep met invoer.
+    terug = verzoeken[1]["body"]["messages"][1]["content"]
+    assert terug[0] == {"type": "thinking", "thinking": "", "signature": "sig-1"}
+    assert terug[2]["input"] == {"van": "2030-03-04", "tot": "2030-03-04"}
+    assert verzoeken[1]["body"]["messages"][2]["content"][0]["tool_use_id"] == "toolu_01"
