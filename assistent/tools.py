@@ -136,6 +136,11 @@ class ToolUitvoerder:
             return ToolResultaat(f"Onbekende tool: {naam}", is_fout=True)
         except (ToolFout, AgendaFout, ValueError, KeyError) as e:
             return ToolResultaat(f"Fout: {e}", is_fout=True)
+        except Exception:
+            # Een bug of een kapotte database. Claude moet het wel horen, anders blijft zijn
+            # tool_use zonder antwoord en weigert de API de rest van het gesprek.
+            log.exception("tool %s faalde onverwacht", naam)
+            return ToolResultaat("Fout: er ging intern iets mis. Zeg eerlijk tegen Tymo dat het niet lukte.", is_fout=True)
 
     # ---- helpers ---------------------------------------------------------------------
     def _datum(self, tekst: str, veld: str) -> date:

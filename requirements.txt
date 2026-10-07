@@ -1,0 +1,16 @@
+# Dezelfde versies als in de .venv op de Pi (7 oktober 2026).
+# Installeren: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+anthropic==1.11.0
+caldav==3.3.1
+icalendar==7.3.0
+python-dotenv==1.2.4
+
+# Voor de kern en de webapp (nog te bouwen)
+fastapi==0.142.2
+uvicorn==0.54.0
+jinja2==3.1.6
+python-multipart==0.0.32
+
+# Tests
+pytest==9.1.1
+httpx==0.28.1

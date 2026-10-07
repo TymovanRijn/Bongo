@@ -30,7 +30,8 @@ Tymo kan het hier of in de webapp aanpassen. Houd het kort: alles hierin kost bi
 class Geheugen:
     def __init__(self, pad: Path):
         self.pad = Path(pad)
-        self._slot = threading.Lock()
+        # RLock: voeg_toe en verwijder houden het slot vast en roepen daarbinnen schrijf() aan.
+        self._slot = threading.RLock()
         if not self.pad.exists():
             self.pad.parent.mkdir(parents=True, exist_ok=True)
             self.pad.write_text(STANDAARD, encoding="utf-8")
@@ -57,19 +58,22 @@ class Geheugen:
     def voeg_toe(self, feit: str) -> str:
         feit = " ".join(feit.split())
         regel = f"- {feit} ({date.today().isoformat()})"
-        regels = self.lees().rstrip("\n").splitlines()
-        if SECTIE not in regels:
-            regels += ["", SECTIE]
-        # Invoegen aan het eind van de sectie, vóór een eventuele volgende kop.
-        eind = len(regels)
-        for i in range(regels.index(SECTIE) + 1, len(regels)):
-            if regels[i].startswith("#"):
-                eind = i
-                break
-        while eind > 0 and not regels[eind - 1].strip() and regels[eind - 1] != SECTIE:
-            eind -= 1
-        regels.insert(eind, regel)
-        self.schrijf("\n".join(regels) + "\n")
+        # Lezen, aanpassen en schrijven onder één slot: anders kunnen twee goedkeuringen
+        # tegelijk allebei de oude tekst lezen, en overschrijft de tweede het feit van de eerste.
+        with self._slot:
+            regels = self.lees().rstrip("\n").splitlines()
+            if SECTIE not in regels:
+                regels += ["", SECTIE]
+            # Invoegen aan het eind van de sectie, vóór een eventuele volgende kop.
+            eind = len(regels)
+            for i in range(regels.index(SECTIE) + 1, len(regels)):
+                if regels[i].startswith("#"):
+                    eind = i
+                    break
+            while eind > 0 and not regels[eind - 1].strip() and regels[eind - 1] != SECTIE:
+                eind -= 1
+            regels.insert(eind, regel)
+            self.schrijf("\n".join(regels) + "\n")
         return regel
 
     @staticmethod
@@ -89,10 +93,11 @@ class Geheugen:
         return None
 
     def verwijder(self, feit: str) -> str:
-        regel = self.zoek_regel(feit)
-        if regel is None:
-            raise ValueError(f"Regel niet gevonden in het geheugen: {feit}")
-        regels = self.lees().splitlines()
-        regels.remove(regel)
-        self.schrijf("\n".join(regels) + "\n")
+        with self._slot:
+            regel = self.zoek_regel(feit)
+            if regel is None:
+                raise ValueError(f"Regel niet gevonden in het geheugen: {feit}")
+            regels = self.lees().splitlines()
+            regels.remove(regel)
+            self.schrijf("\n".join(regels) + "\n")
         return regel

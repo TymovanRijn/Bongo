@@ -211,14 +211,21 @@ class Brain:
             "voortzetten. Noem afspraken, voorstellen en wat Tymo wilde. Antwoord alleen met de samenvatting.",
         }
         try:
-            resp = self._roep_api(self.history + [verzoek], doel="samenvatting", met_tools=False)
+            # Dezelfde systeemprompt en tools als de rest van het gesprek: zonder tools weigert
+            # de API een geschiedenis met tool_use, en de denkblokken zijn eraan gebonden.
+            # tool_choice "none" zorgt dat hij alleen tekst schrijft.
+            resp = self._roep_api(self.history + [verzoek], doel="samenvatting", tool_choice={"type": "none"})
             tekst = "".join(b.get("text", "") for b in map(_als_dict, resp.content) if b.get("type") == "text").strip()
         except (BreinFout, anthropic.BadRequestError):
+            tekst = ""
+        if not tekst:
             log.warning("samenvatten mislukt, ik knip in plaats daarvan")
             self._knip(self.inst.max_beurten // 2)
             return
+        bekend = self._bekende_status
         self.nieuw_gesprek("samengevat")
         self._samenvatting = tekst
+        self._bekende_status = bekend  # voorstellen uit het eerste deel blijven we volgen
 
     def _beheer_geschiedenis(self, nu: datetime) -> None:
         strategie = self.inst.gespreksgeheugen
@@ -245,7 +252,14 @@ class Brain:
             self._knip(self.HARDE_GRENS_BEURTEN // 2)
 
     # ---- API ---------------------------------------------------------------------------
-    def _roep_api(self, berichten: list[dict], doel: str, met_tools: bool = True, systeem: list[dict] | None = None):
+    def _roep_api(
+        self,
+        berichten: list[dict],
+        doel: str,
+        met_tools: bool = True,
+        systeem: list[dict] | None = None,
+        tool_choice: dict | None = None,
+    ):
         kwargs: dict[str, Any] = {
             "model": self.inst.model,
             "max_tokens": self.inst.max_tokens,
@@ -256,6 +270,8 @@ class Brain:
         }
         if met_tools:
             kwargs["tools"] = self.tools.definities
+        if tool_choice:
+            kwargs["tool_choice"] = tool_choice
         if not self.inst.model.startswith("claude-haiku"):
             kwargs["output_config"] = {"effort": self.inst.effort}
         if self.inst.model.startswith(_FALLBACK_MODELLEN):
@@ -322,7 +338,9 @@ class Brain:
             begin = time.monotonic()
             nu = self.klok()
             self._beheer_geschiedenis(nu)
-            if self._systeem is None:
+            if self._systeem is None or not self.history:
+                # Zonder geschiedenis is er niets om de cache voor te sparen: lees het geheugen
+                # opnieuw in (het kan veranderd zijn na een mislukte eerste vraag).
                 self._bevries_systeem()
 
             bewaard = len(self.history)
@@ -332,17 +350,32 @@ class Brain:
                 self._meld_geheugen()
             self.logboek.schrijf("vraag", tekst, gesprek=self.gesprek_id, bron=bron)
 
+            gelukt = False
             try:
                 antwoord = self._lus(bron)
+                gelukt = True
             except BreinFout as e:
-                del self.history[bewaard:]  # de geschiedenis blijft geldig voor de volgende vraag
-                self._geheugen_versie = oude_versie
-                self.logboek.schrijf("fout", {"melding": e.melding, "technisch": e.technisch}, gesprek=self.gesprek_id, bron=bron)
+                self._log_fout(e, bron)
                 raise
+            except Exception as e:  # een bug: Tymo krijgt toch een nette melding
+                log.exception("onverwachte fout bij een vraag")
+                fout = BreinFout("Er ging iets mis bij het nadenken.", repr(e))
+                self._log_fout(fout, bron)
+                raise fout from e
+            finally:
+                if not gelukt:
+                    # Wat er ook misging (ook Ctrl+C): haal deze beurt weg. Anders blijft er
+                    # bijvoorbeeld een tool_use zonder tool_result staan en weigert de API
+                    # elke volgende vraag.
+                    del self.history[bewaard:]
+                    self._geheugen_versie = oude_versie
             self._laatste_activiteit = nu
             antwoord.ms = int((time.monotonic() - begin) * 1000)
             self.logboek.schrijf("antwoord", antwoord.tekst, gesprek=self.gesprek_id, bron=bron)
             return antwoord
+
+    def _log_fout(self, fout: BreinFout, bron: str) -> None:
+        self.logboek.schrijf("fout", {"melding": fout.melding, "technisch": fout.technisch}, gesprek=self.gesprek_id, bron=bron)
 
     def _meld_geheugen(self) -> None:
         tekst = (

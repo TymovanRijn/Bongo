@@ -1,0 +1,11 @@
+# Python: wordt op elke computer opnieuw gemaakt, hoort niet in git
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Geheimen (API-sleutel, iCloud-wachtwoord, pincode)
+.env
+
+# Alles wat Bongo tijdens het draaien maakt: database, geheugen, logboeken, nep-agenda
+data/

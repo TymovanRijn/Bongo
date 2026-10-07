@@ -46,13 +46,17 @@ def maak_onderdelen(inst: Instellingen, client=..., agenda: AgendaBackend | None
     return Onderdelen(inst, db, logboek, geheugen, agenda, wachtrij, tools, brain)
 
 
-def stel_logging_in(inst: Instellingen, naam: str) -> None:
-    """Naar de console (journald) en naar een bestand van maximaal 1 MB x 5."""
+def stel_logging_in(inst: Instellingen, naam: str, console_niveau: int = logging.INFO) -> None:
+    """Naar de console (journald) en naar een bestand van maximaal 1 MB x 5.
+
+    De CLI zet `console_niveau` hoger, zodat logregels niet door het gesprek heen lopen.
+    """
     inst.log_dir.mkdir(parents=True, exist_ok=True)
     opmaak = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
     bestand = logging.handlers.RotatingFileHandler(inst.log_dir / f"{naam}.log", maxBytes=1_000_000, backupCount=5, encoding="utf-8")
     bestand.setFormatter(opmaak)
     console = logging.StreamHandler()
+    console.setLevel(console_niveau)
     console.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
     root = logging.getLogger()
     root.setLevel(logging.INFO)
