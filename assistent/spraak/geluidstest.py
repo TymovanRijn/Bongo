@@ -257,12 +257,15 @@ def _geluidstest(inst, schrijf, vraag) -> int:
     else:
         schrijf("   Ik hoor je bijna niet. Zet de microfoon harder (alsamixer -c " + mic.id + ") of praat dichterbij.")
 
-    # 4. De luidspreker
+    # 4. Het wekwoord
+    _wekwoord(inst, mic, kanalen, schrijf, vraag)
+
+    # 5. De luidspreker
     gehoord = None
     if speaker is None:
-        schrijf("\n4. De ReSpeaker heeft geen uitgang voor een luidspreker. De speakers zitten dus ergens anders.")
+        schrijf("\n5. De ReSpeaker heeft geen uitgang voor een luidspreker. De speakers zitten dus ergens anders.")
     else:
-        schrijf("\n4. Nu spreek ik een zin uit via de ReSpeaker en luister ik tegelijk mee.")
+        schrijf("\n5. Nu spreek ik een zin uit via de ReSpeaker en luister ik tegelijk mee.")
         schrijf("   Bongo's stem laden (Piper wordt de eerste keer gedownload)...")
         geluid, rate, bron = testgeluid(inst)
         schrijf(f"   Stem: {bron}. Even stil zijn...")
@@ -276,7 +279,7 @@ def _geluidstest(inst, schrijf, vraag) -> int:
         gehoord = vraag("   Hoorde je de zin uit de speakers? (j/n) ").strip().lower().startswith("j")
         schrijf("   " + _over_de_echo(echo(opname, GELUID_VANAF, duur), kanalen, gehoord, mic.id))
 
-    # 5. Wat er in .env moet
+    # 6. Wat er in .env moet
     advies = {"MIC_APPARAAT": mic.alsa, "MIC_KANALEN": str(kanalen), "MIC_KANAAL": "0"}
     if speaker is not None and gehoord:
         advies["SPEAKER_APPARAAT"] = speaker.alsa
@@ -284,12 +287,56 @@ def _geluidstest(inst, schrijf, vraag) -> int:
           "MIC_KANAAL": str(inst.mic_kanaal), "SPEAKER_APPARAAT": inst.speaker_apparaat}
     anders = {naam: waarde for naam, waarde in advies.items() if nu[naam] != waarde}
     if anders:
-        schrijf("\n5. Zet dit in .env (nano .env) en start de kern opnieuw:")
+        schrijf("\n6. Zet dit in .env (nano .env) en start de kern opnieuw:")
         for naam, waarde in anders.items():
             schrijf(f"   {naam}={waarde}        (nu: {nu[naam]})")
     else:
-        schrijf("\n5. In .env staat alles al goed.")
+        schrijf("\n6. In .env staat alles al goed.")
     return 0
+
+
+def maak_detector(model: str):
+    from .wekwoord import WekwoordDetector
+
+    return WekwoordDetector(model)
+
+
+def hoogste_kans(opname: np.ndarray, detector) -> float:
+    """Hoe zeker openWakeWord in deze opname het wekwoord hoorde (0 tot 1), op kanaal 0, zoals Bongo luistert."""
+    kanaal = opname[:, 0].astype(np.float32) / 32768
+    return max((detector(kanaal[i : i + 512]) for i in range(0, len(kanaal) - 511, 512)), default=0.0)
+
+
+def _wekwoord(inst, mic: Kaart, kanalen: int, schrijf, vraag) -> None:
+    if not inst.wekwoord:
+        schrijf("\n4. Het wekwoord staat uit. Aanzetten: WEKWOORD=hey_jarvis in .env (zie docs/spraak.md).")
+        return
+    naam = "je wekwoord" if inst.wekwoord.endswith(".onnx") else inst.wekwoord.replace("_", " ").title()
+    schrijf(f"\n4. Het wekwoord ({inst.wekwoord}) laden...")
+    try:
+        detector = maak_detector(inst.wekwoord)
+    except Exception as e:
+        schrijf(f"   Het wekwoord laden lukt niet: {e}")
+        if isinstance(e, ImportError):
+            schrijf("   Installeer de pakketten opnieuw: .venv/bin/pip install -r requirements.txt")
+        return
+    vraag(f"   Druk op Enter en zeg dan drie keer, met een pauze ertussen: '{naam}' ")
+    schrijf("   Zeg het maar...")
+    kans = hoogste_kans(neem_op(mic.alsa, kanalen, 8), detector)
+    drempel = inst.wekwoord_drempel
+    schrijf(f"   Hoe zeker hij het hoorde: {kans:.2f}   (nodig: {drempel:.2f}, uit WEKWOORD_DREMPEL)")
+    if kans >= drempel:
+        schrijf("   Hij hoort het wekwoord. Werkt het in de kern niet, kijk dan in het logboek van de kern naar 'wekwoord'.")
+    elif kans >= 0.1:
+        schrijf(
+            f"   Hij twijfelt. Zeg het op z'n Engels ('{naam}', niet 'Hé ...'), of zet WEKWOORD_DREMPEL lager, "
+            f"bijvoorbeeld WEKWOORD_DREMPEL={max(0.1, round(kans - 0.05, 2))}"
+        )
+    else:
+        schrijf(
+            f"   Hij hoort het niet. Zeg het op z'n Engels en wat duidelijker ('{naam}'). "
+            "Kwam je stem in stap 3 wel goed binnen? Anders ligt het aan de microfoon."
+        )
 
 
 def _over_de_echo(boven_stilte: list[float], kanalen: int, gehoord: bool, kaart_id: str) -> str:

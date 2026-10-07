@@ -174,7 +174,7 @@ Draai dan de geluidstest, met de kern uit (anders is de microfoon bezet):
 .venv/bin/python -m assistent.kern geluid
 ```
 
-Die doet vijf dingen:
+Die doet zes dingen:
 
 1. Kijkt of de ReSpeaker er is.
 2. Kijkt hoeveel kanalen hij geeft. Dat hangt af van zijn firmware. Bij `6` is kanaal 0 je stem,
@@ -182,9 +182,12 @@ Die doet vijf dingen:
    kanaal 5 wat hij zelf afspeelt. Bij `1` is dat ene kanaal al de schoongemaakte stem. Bongo
    gebruikt altijd de schoongemaakte stem.
 3. Vraagt je iets te zeggen en laat per kanaal zien hoe hard je stem binnenkomt.
-4. Spreekt een zin uit via de speakers en luistert tegelijk mee. Daarmee meet hij hoeveel van
-   Bongo's eigen stem er na de echo-onderdrukking nog in de microfoon zit.
-5. Zegt wat er in `.env` moet, en wat er nu staat.
+4. Als het wekwoord aan staat: vraagt je het een paar keer te zeggen en laat zien hoe zeker
+   openWakeWord het hoorde, naast de drempel die nodig is.
+5. Spreekt een zin uit via de speakers (met de stem uit `.env`: Azure of Piper) en luistert
+   tegelijk mee. Daarmee meet hij hoeveel van Bongo's eigen stem er na de echo-onderdrukking nog in
+   de microfoon zit.
+6. Zegt wat er in `.env` moet, en wat er nu staat.
 
 Daarna: `.env` aanpassen zoals hij zegt, en de kern opnieuw starten. In het logboek van de kern
 staat bij het starten welke microfoon en luidspreker hij gebruikt (`spraak: microfoon ...`).
@@ -245,5 +248,5 @@ In de webapp, onder Meer > Snelheid, staat per stap hoe lang het duurde. Lees vo
 | Hij hoort zichzelf praten | De luidspreker zit niet aan de ReSpeaker, dus er is geen echo-onderdrukking. Zet hem zachter |
 | "Het wekwoord werkt niet: No module named 'openwakeword'" | De pakketten zijn van voor het wekwoord: `.venv/bin/pip install -r requirements.txt` |
 | "Het wekwoord werkt niet: ..." over downloaden | De eerste keer moet de Pi bij GitHub kunnen. Kijk of hij internet heeft en herstart de kern |
-| Hij reageert niet op het wekwoord | Kijk eerst of tikken werkt (dan doet de microfoon het). Zeg het wat duidelijker, of zet `WEKWOORD_DREMPEL` lager |
+| Hij reageert niet op het wekwoord | Draai de geluidstest: stap 4 meet hoe zeker hij het wekwoord hoort. Zeg het op z'n Engels |
 | Hij wordt vanzelf wakker | Zet `WEKWOORD_DREMPEL` hoger (bijvoorbeeld 0,7) |

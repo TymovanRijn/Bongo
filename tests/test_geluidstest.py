@@ -7,6 +7,7 @@ kanalen er zijn, en "neemt op" wat de test klaarzet. De geluidstest zelf is de e
 import json
 import os
 import sys
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -87,11 +88,13 @@ def nep(tmp_path, monkeypatch, inst):
     # Een kort testgeluid van 2 seconden, zonder Piper (dat zou een stem willen downloaden).
     monkeypatch.setattr(geluidstest, "testgeluid", lambda inst_: (b"\x10\x00" * RATE * 2, RATE, "nep"))
 
-    def _draai(kanalen=6, opnames=(STEM, luidspreker(30)), antwoorden=("", "j"), arecord_l=ARECORD_L, bezet=False):
+    def _draai(kanalen=6, opnames=(STEM, luidspreker(30)), antwoorden=("", "j"), arecord_l=ARECORD_L, bezet=False, **anders):
         instelling = {"kanalen": kanalen, "opnames": list(opnames), "arecord_l": arecord_l, "aplay_l": APLAY_L, "bezet": bezet}
         (tmp_path / "instelling.json").write_text(json.dumps(instelling))
         uitvoer, antwoord = [], iter(antwoorden)
-        code = geluidstest.geluidstest(inst, schrijf=uitvoer.append, vraag=lambda tekst: (uitvoer.append(tekst), next(antwoord))[1])
+        code = geluidstest.geluidstest(
+            replace(inst, **anders), schrijf=uitvoer.append, vraag=lambda tekst: (uitvoer.append(tekst), next(antwoord))[1]
+        )
         return code, "\n".join(uitvoer), tmp_path
 
     return _draai
@@ -111,6 +114,46 @@ def test_alles_goed_met_6_kanalen(nep):
     assert "aplay -q -D plughw:CARD=ArrayUAC10,DEV=0" in log
 
 
+class NepWekwoord:
+    """Hoort het wekwoord als het hard is, met de kans die de test opgeeft."""
+
+    def __init__(self, kans):
+        self.kans = kans
+
+    def __call__(self, stukje):
+        return self.kans if abs(stukje).max() > 0.05 else 0.0
+
+
+WEKWOORD = [[0, 2.0, 3.0, 3000]]  # "Hey Jarvis" op kanaal 0
+
+
+def test_wekwoord_staat_uit(nep):
+    _, uit, _ = nep()
+    assert "Het wekwoord staat uit" in uit and "WEKWOORD=hey_jarvis" in uit
+
+
+@pytest.mark.parametrize(
+    "kans, verwacht",
+    [(0.93, "Hij hoort het wekwoord"), (0.3, "twijfelt"), (0.02, "Hij hoort het niet")],
+)
+def test_wekwoord_meten(nep, monkeypatch, kans, verwacht):
+    monkeypatch.setattr(geluidstest, "maak_detector", lambda model: NepWekwoord(kans))
+    code, uit, _ = nep(opnames=(STEM, WEKWOORD, luidspreker(30)), antwoorden=("", "", "j"), wekwoord="hey_jarvis")
+    assert code == 0 and verwacht in uit
+    assert f"Hoe zeker hij het hoorde: {kans:.2f}" in uit and "'Hey Jarvis'" in uit
+    if kans == 0.3:
+        assert "WEKWOORD_DREMPEL=0.25" in uit
+
+
+def test_wekwoord_niet_geinstalleerd(nep, monkeypatch):
+    def kapot(model):
+        raise ModuleNotFoundError("No module named 'openwakeword'")
+
+    monkeypatch.setattr(geluidstest, "maak_detector", kapot)
+    code, uit, _ = nep(wekwoord="hey_jarvis")
+    assert code == 0 and "pip install -r requirements.txt" in uit  # de rest van de test gaat gewoon door
+
+
 def test_bongo_hoort_zichzelf(nep):
     _, uit, _ = nep(opnames=(STEM, luidspreker(3000)))
     assert "Bongo hoort zichzelf duidelijk" in uit
@@ -119,13 +162,13 @@ def test_bongo_hoort_zichzelf(nep):
 def test_speakers_niet_gehoord(nep):
     code, uit, _ = nep(antwoorden=("", "n"))
     assert code == 0
-    assert "alsamixer -c ArrayUAC10" in uit and "SPEAKER_APPARAAT" not in uit.split("5.")[-1]
+    assert "alsamixer -c ArrayUAC10" in uit and "SPEAKER_APPARAAT" not in uit.split("6.")[-1]
 
 
 def test_firmware_met_1_kanaal(nep):
     code, uit, _ = nep(kanalen=1)
     assert code == 0 and "1 kanaal." in uit
-    assert "MIC_KANALEN" not in uit.split("5.")[-1]  # 1 is de standaard: dat hoeft niet te veranderen
+    assert "MIC_KANALEN" not in uit.split("6.")[-1]  # 1 is de standaard: dat hoeft niet te veranderen
     assert "Op het kanaal dat Bongo gebruikt" in uit
 
 
