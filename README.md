@@ -64,6 +64,8 @@ Met de kern aan:
 
 - **Touchscreen:** `http://localhost:8765/kiosk` (op de Pi zelf, zonder aanmelden). Tik op het gezicht
   om te praten (zie `docs/spraak.md` voor de microfoon), of zet het wekwoord aan (`WEKWOORD=hey_jarvis`).
+- **Microfoon en speakers testen:** `.venv/bin/python -m assistent.kern geluid` (met de kern uit). Hij
+  zegt ook wat er in `.env` moet.
 - **Telefoon:** `http://192.168.1.53:8765` of `http://raspberrypi.local:8765`. De eerste keer vraagt
   hij de pincode uit `WEB_PIN`. Zet daarna "Toevoegen aan beginscherm" aan in de browser.
 - **Nog een apparaat koppelen zonder pincode:** in de webapp onder Meer > Apparaten, of op de Pi:

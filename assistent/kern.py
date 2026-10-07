@@ -409,8 +409,14 @@ def main(argv: list[str] | None = None) -> int:
     w = sub.add_parser("ontkoppel", help="ontkoppel een apparaat")
     w.add_argument("id", help="de id uit 'apparaten'")
     sub.add_parser("agendas", help="laat zien welke agenda's Bongo leest en waarin hij mag schrijven")
+    sub.add_parser("geluid", help="test de microfoon en de speakers, en zeg wat er in .env moet")
     args = parser.parse_args(argv)
     inst = laad_instellingen()
+
+    if args.opdracht == "geluid":
+        from .spraak.geluidstest import geluidstest
+
+        return geluidstest(inst)
 
     if args.opdracht == "agendas":
         try:

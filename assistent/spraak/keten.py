@@ -298,6 +298,11 @@ def maak_spraak(o, bij_wijziging: Callable[[], None] | None = None) -> Spraak | 
         log.warning("spraak staat uit: het pakket '%s' ontbreekt (.venv/bin/pip install -r requirements.txt)", e.name)
         return None
     modellen = inst.data_dir / "modellen"
+    log.info(
+        "spraak: microfoon %s (kanaal %d van %d), luidspreker %s%s",
+        inst.mic_apparaat, inst.mic_kanaal, inst.mic_kanalen, inst.speaker_apparaat,
+        "" if "ArrayUAC10" in inst.mic_apparaat else " (niet de ReSpeaker? test het met: python -m assistent.kern geluid)",
+    )
     microfoon = AlsaMicrofoon(inst.mic_apparaat, inst.mic_kanalen, inst.mic_kanaal)
     if inst.wekwoord:
         from .wekwoord import AltijdAan, WekwoordDetector

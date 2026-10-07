@@ -122,43 +122,48 @@ Eerlijk: dit heb ik niet zelf gedaan. Een zelfgetraind wekwoord is vaak minder g
 kant-en-klare, die met veel meer werk gemaakt zijn. Probeer het, en zet de drempel bij als hij te
 vaak of te weinig reageert.
 
-## De microfoon aansluiten (ReSpeaker Mic Array v2.0)
+## De microfoon en de speakers aansluiten (ReSpeaker Mic Array v2.0)
 
-1. Steek hem in een USB-poort en kijk of hij er is:
-   ```bash
-   lsusb | grep -i 2886          # Seeed Technology ... ReSpeaker
-   arecord -l                    # card ...: ArrayUAC10
-   ```
-2. Kijk hoeveel kanalen hij heeft (dat hangt af van de firmware):
-   ```bash
-   arecord -D plughw:CARD=ArrayUAC10,DEV=0 --dump-hw-params -d 1 /dev/null 2>&1 | grep CHANNELS
-   ```
-   - `6`: kanaal 0 is je stem, schoongemaakt (echo eruit, ruis eruit). Kanaal 1 tot en met 4
-     zijn de losse microfoons, kanaal 5 is wat de luidspreker afspeelt. Bongo moet dus kanaal 0.
-   - `1`: dat ene kanaal is al de schoongemaakte stem.
-3. Zet in `.env` (met `MIC_KANALEN=1` als stap 2 dat zei):
-   ```
-   MIC_APPARAAT=plughw:CARD=ArrayUAC10,DEV=0
-   MIC_KANALEN=6
-   MIC_KANAAL=0
-   ```
-4. Proef: neem 5 seconden op en speel het af.
-   ```bash
-   arecord -D plughw:CARD=ArrayUAC10,DEV=0 -f S16_LE -r 16000 -c 1 -d 5 /tmp/proef.wav
-   aplay /tmp/proef.wav
-   ```
+Steek de ReSpeaker in een USB-poort en de speakers in de **3,5 mm-uitgang van de ReSpeaker**. Dan
+hoort de ReSpeaker zelf wat er afgespeeld wordt en haalt hij dat uit de microfoon
+(echo-onderdrukking). Zie ook `docs/hardware.md`, hoofdstuk 4.
 
-## De luidspreker
+Draai dan de geluidstest, met de kern uit (anders is de microfoon bezet):
 
-Het beste is de luidspreker in de **3,5 mm-uitgang van de ReSpeaker**. Dan hoort de ReSpeaker zelf
-wat er afgespeeld wordt en haalt hij dat uit de microfoon (echo-onderdrukking). Zie ook
-`docs/hardware.md`, hoofdstuk 4. Zet dan in `.env`:
-
-```
-SPEAKER_APPARAAT=plughw:CARD=ArrayUAC10,DEV=0
+```bash
+.venv/bin/python -m assistent.kern geluid
 ```
 
-Proef: `aplay -D plughw:CARD=ArrayUAC10,DEV=0 /usr/share/sounds/alsa/Front_Center.wav`
+Die doet vijf dingen:
+
+1. Kijkt of de ReSpeaker er is.
+2. Kijkt hoeveel kanalen hij geeft. Dat hangt af van zijn firmware. Bij `6` is kanaal 0 je stem,
+   schoongemaakt (echo eruit, ruis eruit), zijn kanaal 1 tot en met 4 de losse microfoons, en is
+   kanaal 5 wat hij zelf afspeelt. Bij `1` is dat ene kanaal al de schoongemaakte stem. Bongo
+   gebruikt altijd de schoongemaakte stem.
+3. Vraagt je iets te zeggen en laat per kanaal zien hoe hard je stem binnenkomt.
+4. Spreekt een zin uit via de speakers en luistert tegelijk mee. Daarmee meet hij hoeveel van
+   Bongo's eigen stem er na de echo-onderdrukking nog in de microfoon zit.
+5. Zegt wat er in `.env` moet, en wat er nu staat.
+
+Daarna: `.env` aanpassen zoals hij zegt, en de kern opnieuw starten. In het logboek van de kern
+staat bij het starten welke microfoon en luidspreker hij gebruikt (`spraak: microfoon ...`).
+
+Liever met de hand? Dit zijn de commando's die de test gebruikt:
+
+```bash
+arecord -l                                   # opnemen: zie je ArrayUAC10?
+aplay -l                                     # afspelen: zie je ArrayUAC10?
+# Hoeveel kanalen: gebruik hw: en niet plughw:, want plughw doet alsof elk aantal kan.
+arecord -D hw:CARD=ArrayUAC10,DEV=0 -f S16_LE -r 16000 -c 6 -d 1 /dev/null && echo "6 kanalen"
+# Opnemen en via de ReSpeaker terugspelen:
+arecord -D plughw:CARD=ArrayUAC10,DEV=0 -f S16_LE -r 16000 -c 1 -d 5 /tmp/proef.wav
+aplay -D plughw:CARD=ArrayUAC10,DEV=0 /tmp/proef.wav
+```
+
+Waarom niet gewoon `default`? `default` is wat de Pi als standaard heeft gekozen, en dat is vaak de
+HDMI-uitgang van het scherm, niet de ReSpeaker. Met `plughw:CARD=ArrayUAC10,DEV=0` wijs je de
+ReSpeaker aan bij zijn naam. Die blijft hetzelfde, ook als je hem in een andere USB-poort steekt.
 
 ## De eerste keer opstarten
 
@@ -189,6 +194,7 @@ In de webapp, onder Meer > Snelheid, staat per stap hoe lang het duurde. Lees vo
 | Wat je ziet | Wat het meestal is |
 |---|---|
 | "Spraak staat uit" | `SPRAAK=nee` in `.env`, of de pakketten ontbreken: `.venv/bin/pip install -r requirements.txt` |
+| Hij hoort je niet, of je hoort hem niet | Draai de geluidstest: `.venv/bin/python -m assistent.kern geluid` |
 | "de microfoon stopte: ... No such file or directory" | `MIC_APPARAAT` klopt niet: kijk met `arecord -l` |
 | "de microfoon stopte: ... Device or resource busy" | PipeWire gebruikt de microfoon al. Probeer `MIC_APPARAAT=default` en maak de ReSpeaker de standaard met `wpctl status` en `wpctl set-default <nummer>` |
 | Hij reageert nooit op je stem | Verkeerd kanaal (`MIC_KANAAL`), of de microfoon staat te zacht (`alsamixer`) |
