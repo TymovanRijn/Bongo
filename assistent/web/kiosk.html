@@ -9,24 +9,70 @@
   <script src="/static/gedeeld.js" defer></script>
   <script src="/static/kiosk.js" defer></script>
 </head>
-<body class="kiosk">
-  <section class="kiosk-links">
-    <div id="klok" class="klok">--:--</div>
-    <div id="datum" class="datum"></div>
-    <img src="/static/aap.svg" alt="" id="aap" class="aap">
-    <p id="ochtend" class="ochtend"></p>
-  </section>
+<body class="kiosk rust">
+  <!-- Het hele scherm is Bongo's gezicht. Tik erop om met hem te praten. -->
+  <svg id="gezicht" class="gezicht" viewBox="0 0 1024 600" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Bongo">
+    <defs>
+      <radialGradient id="iris-kleur" cx="50%" cy="42%" r="58%">
+        <stop offset="0%" stop-color="#e3a157"/>
+        <stop offset="62%" stop-color="#94551f"/>
+        <stop offset="100%" stop-color="#4b280c"/>
+      </radialGradient>
+      <radialGradient id="neus-kleur" cx="50%" cy="30%" r="70%">
+        <stop offset="0%" stop-color="#7a4c2b"/>
+        <stop offset="100%" stop-color="#4a2b16"/>
+      </radialGradient>
+      <clipPath id="vorm-links"><ellipse cx="330" cy="255" rx="132" ry="148"/></clipPath>
+      <clipPath id="vorm-rechts"><ellipse cx="694" cy="255" rx="132" ry="148"/></clipPath>
+    </defs>
 
-  <section class="kiosk-rechts">
-    <div id="agenda"></div>
-    <p id="agenda-fout" class="storing-label" hidden></p>
-  </section>
+    <circle class="gloed" cx="330" cy="255" r="168"/>
+    <circle class="gloed" cx="694" cy="255" r="168"/>
 
+    <g class="oog links">
+      <g clip-path="url(#vorm-links)">
+        <ellipse class="oogwit" cx="330" cy="255" rx="130.5" ry="146.5"/>
+        <g class="kijk"><g class="denkbeweging">
+          <circle class="iris" cx="330" cy="262" r="86"/>
+          <circle class="pupil" cx="330" cy="262" r="48"/>
+          <circle class="glans" cx="300" cy="228" r="17"/>
+          <circle class="glans" cx="358" cy="292" r="7"/>
+        </g></g>
+        <ellipse class="ooglid boven" cx="330" cy="-45" rx="210" ry="152"/>
+        <ellipse class="ooglid onder" cx="330" cy="555" rx="160" ry="152"/>
+      </g>
+    </g>
+
+    <g class="oog rechts">
+      <g clip-path="url(#vorm-rechts)">
+        <ellipse class="oogwit" cx="694" cy="255" rx="130.5" ry="146.5"/>
+        <g class="kijk"><g class="denkbeweging">
+          <circle class="iris" cx="694" cy="262" r="86"/>
+          <circle class="pupil" cx="694" cy="262" r="48"/>
+          <circle class="glans" cx="664" cy="228" r="17"/>
+          <circle class="glans" cx="722" cy="292" r="7"/>
+        </g></g>
+        <ellipse class="ooglid boven" cx="694" cy="-45" rx="210" ry="152"/>
+        <ellipse class="ooglid onder" cx="694" cy="555" rx="160" ry="152"/>
+      </g>
+    </g>
+
+    <g class="neus">
+      <path class="neusvorm" d="M 466 438 C 466 404 558 404 558 438 C 558 470 536 486 512 486 C 488 486 466 470 466 438 Z"/>
+      <ellipse class="neusgat" cx="495" cy="455" rx="12" ry="8" transform="rotate(-22 495 455)"/>
+      <ellipse class="neusgat" cx="529" cy="455" rx="12" ry="8" transform="rotate(22 529 455)"/>
+      <ellipse class="neusglans" cx="512" cy="420" rx="22" ry="7"/>
+    </g>
+
+    <g class="zzz">
+      <text x="800" y="120">z</text>
+      <text x="840" y="80">z</text>
+      <text x="884" y="44">z</text>
+    </g>
+  </svg>
+
+  <p id="ondertitel" class="ondertitel" aria-live="polite"></p>
   <section id="voorstellen" class="kiosk-voorstellen" aria-live="polite"></section>
-
-  <div id="nacht" class="nacht" hidden>
-    <div id="nachtklok" class="nachtklok"></div>
-  </div>
   <div id="storing" class="kiosk-storing" hidden>Geen verbinding met de kern. Ik probeer het opnieuw…</div>
 </body>
 </html>

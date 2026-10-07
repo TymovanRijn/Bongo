@@ -275,3 +275,50 @@ def test_herstel_bij_het_opstarten(web):
     with c:
         pass
     assert o.wachtrij.get(v.id).status == "open"
+
+
+# ---- spraak -------------------------------------------------------------------------------
+class NepSpraak:
+    def __init__(self):
+        self.tikken = 0
+        self.bij_wijziging = None
+        self.opgewarmd = False
+
+    def tik(self):
+        self.tikken += 1
+        return "luisteren"
+
+    def status(self):
+        return {"toestand": "luisteren" if self.tikken else "rust", "ondertitel": "", "melding": "", "klaar": True}
+
+    def warm_op(self):
+        self.opgewarmd = True
+
+
+def test_alleen_het_scherm_zet_de_microfoon_aan(maak):
+    o, _ = maak(pin="4821")
+    spraak = NepSpraak()
+    app = maak_app(o, start_planner=False, spraak=spraak)
+    scherm = TestClient(app, base_url=BASIS, client=("127.0.0.1", 1))
+    assert scherm.post("/api/luister").json()["toestand"] == "luisteren"
+    assert scherm.get("/api/toestand").json()["spraak"]["toestand"] == "luisteren"
+
+    telefoon = TestClient(app, base_url=BASIS, client=("192.168.1.20", 1))
+    telefoon.post("/api/inloggen", json={"pin": "4821"})
+    r = telefoon.post("/api/luister")
+    assert r.status_code == 403 and "scherm van de Pi" in r.json()["fout"]
+    assert spraak.tikken == 1
+
+
+def test_spraak_uit(web):
+    c, _, _ = web()
+    assert c.post("/api/luister").status_code == 503
+    assert c.get("/api/toestand").json()["spraak"]["toestand"] == "uit"
+
+
+def test_spraak_warmt_op_bij_het_starten(maak):
+    o, _ = maak()
+    spraak = NepSpraak()
+    with TestClient(maak_app(o, start_planner=False, spraak=spraak), base_url=BASIS, client=("127.0.0.1", 1)):
+        pass
+    assert spraak.opgewarmd and spraak.bij_wijziging is not None

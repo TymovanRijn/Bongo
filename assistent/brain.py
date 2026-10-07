@@ -105,7 +105,7 @@ def _geweigerd(e: anthropic.APIStatusError, model: str) -> BreinFout:
             technisch,
         )
     if e.status_code == 404:
-        return BreinFout(f"Ik kan het model {model} niet vinden met deze API-sleutel. Kijk naar CLAUDE_MODEL in punt env.", technisch)
+        return BreinFout(f"Ik kan het model {model} niet vinden met deze API-sleutel. Kijk naar BONGO_MODEL in punt env.", technisch)
     return BreinFout("Er ging iets mis bij het nadenken.", technisch)
 
 
@@ -168,6 +168,7 @@ class Brain:
         self.logboek = logboek
         self.tz = ZoneInfo(instellingen.tijdzone)
         self.klok = klok or (lambda: datetime.now(self.tz))
+        self._denken = self._kies_denken()
         self._slot = threading.RLock()
         self.history: list[dict] = []
         self.gesprek_id = ""
@@ -178,6 +179,20 @@ class Brain:
         self._bekende_status: dict[int, str] = {}
         self._beurt_voorstellen: list[int] = []
         self.nieuw_gesprek("start")
+
+    def _kies_denken(self) -> dict | None:
+        """De `thinking`-parameter. None = weglaten (adaptief, de standaard)."""
+        denken, model = self.inst.denken, self.inst.model
+        if denken == "adaptief":
+            return None
+        if denken != "tussen_tools":
+            raise ValueError(f"BONGO_DENKEN moet adaptief of tussen_tools zijn, niet '{denken}'")
+        if not model.startswith("claude-sonnet-5-5"):
+            log.warning("BONGO_DENKEN=tussen_tools kan alleen met claude-sonnet-5-5, niet met %s; ik denk adaptief", model)
+            return None
+        if self.inst.effort in ("xhigh", "max"):
+            raise ValueError("BONGO_DENKEN=tussen_tools kan alleen met BONGO_EFFORT low, medium of high")
+        return {"type": "between_tools"}
 
     # ---- gesprek ---------------------------------------------------------------------
     def nieuw_gesprek(self, reden: str = "handmatig") -> str:
@@ -305,6 +320,8 @@ class Brain:
             kwargs["tools"] = self.tools.definities
         if tool_choice:
             kwargs["tool_choice"] = tool_choice
+        if self._denken:
+            kwargs["thinking"] = self._denken
         if not self.inst.model.startswith("claude-haiku"):
             kwargs["output_config"] = {"effort": self.inst.effort}
         if self.inst.model.startswith(_FALLBACK_MODELLEN):

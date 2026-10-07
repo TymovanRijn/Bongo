@@ -13,7 +13,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(ROOT / ".env")
+# override=True: wat in .env staat, gaat voor. Anders wint een variabele die toevallig al in de
+# omgeving staat; Claude Code zet bijvoorbeeld zelf CLAUDE_EFFORT. Daarom heten Bongo's eigen
+# instellingen ook BONGO_..., zodat ze nooit per ongeluk van een ander programma komen.
+load_dotenv(ROOT / ".env", override=True)
 
 
 def _tekst(naam: str, standaard: str = "") -> str:
@@ -48,6 +51,10 @@ class Instellingen:
     anthropic_workspace_id: str = ""
     model: str = "claude-opus-5-5"
     effort: str = "low"
+    # adaptief: het model bepaalt zelf of en hoeveel het nadenkt (op effort low meestal kort).
+    # tussen_tools: geen extra nadenken, alleen korte notities tussen tool-aanroepen. Alleen voor
+    # claude-sonnet-5-5; Opus 5.5 kan niet zonder nadenken.
+    denken: str = "adaptief"
     max_tokens: int = 16000
     assistent_naam: str = "Bongo"
     gebruiker_naam: str = "Tymo"
@@ -87,6 +94,15 @@ class Instellingen:
     ochtend_tijd: str = "07:30"
     ochtend_uitspreken: bool = False
 
+    # Spraak (fase 3, zie docs/spraak.md)
+    spraak: bool = True
+    mic_apparaat: str = "default"  # ALSA-naam, bijvoorbeeld plughw:CARD=ArrayUAC10,DEV=0
+    mic_kanalen: int = 1  # 6 bij de ReSpeaker met 6-kanaalsfirmware
+    mic_kanaal: int = 0  # welk kanaal is de stem (bij de ReSpeaker: 0, met echo-onderdrukking)
+    speaker_apparaat: str = "default"
+    stt_model: str = "small"  # Whisper: tiny, base, small, medium (groter = beter en trager)
+    stem: str = "nl_NL-mls-medium"  # Piper-stem
+
     # Scherm
     nacht_van: str = "23:00"
     nacht_tot: str = "07:00"
@@ -101,9 +117,10 @@ def laad_instellingen() -> Instellingen:
     return Instellingen(
         anthropic_api_key=_tekst("ANTHROPIC_API_KEY"),
         anthropic_workspace_id=_tekst("ANTHROPIC_WORKSPACE_ID"),
-        model=_tekst("CLAUDE_MODEL", "claude-opus-5-5"),
-        effort=_tekst("CLAUDE_EFFORT", "low"),
-        max_tokens=_getal("CLAUDE_MAX_TOKENS", 16000),
+        model=_tekst("BONGO_MODEL", "claude-opus-5-5"),
+        effort=_tekst("BONGO_EFFORT", "low"),
+        denken=_tekst("BONGO_DENKEN", "adaptief").lower(),
+        max_tokens=_getal("BONGO_MAX_TOKENS", 16000),
         assistent_naam=_tekst("ASSISTENT_NAAM", "Bongo"),
         gebruiker_naam=_tekst("GEBRUIKER_NAAM", "Tymo"),
         tijdzone=_tekst("TIJDZONE", "Europe/Amsterdam"),
@@ -128,6 +145,13 @@ def laad_instellingen() -> Instellingen:
         stem_bevestigen=_ja("STEM_BEVESTIGEN", False),
         ochtend_tijd=_tekst("OCHTEND_TIJD", "07:30"),
         ochtend_uitspreken=_ja("OCHTEND_UITSPREKEN", False),
+        spraak=_ja("SPRAAK", True),
+        mic_apparaat=_tekst("MIC_APPARAAT", "default"),
+        mic_kanalen=_getal("MIC_KANALEN", 1),
+        mic_kanaal=_getal("MIC_KANAAL", 0),
+        speaker_apparaat=_tekst("SPEAKER_APPARAAT", "default"),
+        stt_model=_tekst("STT_MODEL", "small"),
+        stem=_tekst("STEM", "nl_NL-mls-medium"),
         nacht_van=_tekst("NACHT_VAN", "23:00"),
         nacht_tot=_tekst("NACHT_TOT", "07:00"),
         nacht_scherm_uit=_ja("NACHT_SCHERM_UIT", False),

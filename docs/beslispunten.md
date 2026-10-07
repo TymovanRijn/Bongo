@@ -88,6 +88,9 @@ met echo-onderdrukking werkt (fase 3) en blijkt dat de herkenning betrouwbaar is
 Op het touchscreen zelf vraagt "Ja" om een tweede tik ("Zeker? Tik nog eens"), om dezelfde reden:
 een scherm in de kamer wordt ook per ongeluk aangeraakt.
 
+Spraak bestaat nu (zie punt 6), maar deze keuze blijft: een voorstel goedkeuren doe je op het
+scherm of in de webapp, ook als je het hardop gevraagd hebt.
+
 ## 5. Het ochtendoverzicht
 
 **Keuze: `OCHTEND_TIJD=07:30`, op het scherm, `OCHTEND_UITSPREKEN=nee`.**
@@ -97,14 +100,33 @@ Hij staat op het scherm en in de webapp (Meer > Maak het ochtendoverzicht). Star
 dan komt het overzicht tot vier uur na `OCHTEND_TIJD` alsnog. Werkt Claude niet, dan maakt Bongo een
 eenvoudige versie zonder Claude.
 
-Uitspreken kan pas als de spraak er is (fase 3). Speakers die uit zichzelf beginnen te praten,
-moeten bovendien niet iemand wakker maken die uitslaapt; zet dit pas aan als je het wilt.
+Uitspreken kan sinds de spraak er is (`OCHTEND_UITSPREKEN=ja`), maar staat uit: een luidspreker
+die uit zichzelf begint te praten, kan iemand wakker maken die uitslaapt. Zet het aan als je het wilt.
 
-## Het scherm 's nachts
+## 6. Spraak
 
-**Keuze: van 23:00 tot 07:00 een zwart scherm met een dimme klok (`NACHT_VAN`, `NACHT_TOT`);
+**Keuze: tikken op het gezicht (geen wekwoord), verstaan en praten op de Pi zelf (Whisper en
+Piper), en alleen het scherm van de Pi kan de microfoon aanzetten.**
+
+De uitleg en de afwegingen staan in `docs/spraak.md`.
+
+## 7. Welk model?
+
+**Keuze: dat beslis jij, met de meting erbij. Standaard `claude-opus-5-5`.**
+
+De eerste echte vraag op de Pi duurde 21,9 seconden met Opus 5.5. Dat is te traag om tegen te
+praten. Opus 5.5 kan niet zonder nadenken; Sonnet 5.5 wel (`BONGO_DENKEN=tussen_tools`) en is
+bovendien goedkoper. Maar sneller is alleen beter als de antwoorden goed blijven, en dat zie je
+pas als je het meet: `.venv/bin/python -m assistent.meet` stelt dezelfde vragen aan Opus en Sonnet,
+met en zonder nadenken, en laat tijd, kosten én antwoorden zien.
+
+## Het scherm
+
+**Keuze: alleen Bongo's gezicht (twee ogen en een neus), dat laat zien wat hij doet. 's Nachts
+(van 23:00 tot 07:00, `NACHT_VAN` en `NACHT_TOT`) slaapt hij: ogen dicht, scherm gedimd.
 `NACHT_SCHERM_UIT=nee`.**
 
-Het zwarte scherm werkt altijd. Het scherm echt uitzetten (`xset dpms force off`) is ingebouwd, maar
+Agenda en klok staan niet meer op het scherm (vraag het hem, of kijk in de webapp). Voorstellen
+wel: die moet je kunnen goedkeuren. Het slapende gezicht werkt altijd. Het scherm echt uitzetten (`xset dpms force off`) is ingebouwd, maar
 in `docs/hardware.md` staat dat nog niet getest is of de achtergrondverlichting van dit paneel dan
 echt uitgaat. Test dat eerst (`xset -display :0 dpms force off`), en zet het daarna pas aan.

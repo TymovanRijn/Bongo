@@ -3,7 +3,8 @@
 Hij levert:
 - de webapp voor de telefoon (/), het touchscreen (/kiosk) en de aanmeldpagina (/inloggen);
 - de API die die pagina's gebruiken (/api/...);
-- de planner: ochtendoverzicht, logboek opruimen, scherm 's nachts uit.
+- de planner: ochtendoverzicht, logboek opruimen, scherm 's nachts uit;
+- de spraak: een tik op het gezicht op het scherm start een gesprek (spraak/).
 
 Wie erbij mag, regelt de poortwachter (toegang.py, beslispunt 2).
 
@@ -37,6 +38,7 @@ from .db import Database
 from .opbouw import Onderdelen, maak_onderdelen, stel_logging_in
 from .overzicht import agenda_per_dag
 from .planner import Planner, is_nacht
+from .spraak import Spraak, maak_spraak
 from .toegang import COOKIE, COOKIE_DAGEN, Poortwachter, TeVeelPogingen, herkomst_ok, host_ok
 from .wachtrij import Voorstel, WachtrijFout
 
@@ -110,13 +112,15 @@ def _fout(status: int, melding: str) -> JSONResponse:
     return JSONResponse({"fout": melding}, status_code=status)
 
 
-def maak_app(o: Onderdelen, start_planner: bool = True) -> FastAPI:
+def maak_app(o: Onderdelen, start_planner: bool = True, spraak: Spraak | None = None) -> FastAPI:
     inst = o.inst
     tz = ZoneInfo(inst.tijdzone)
     melder = Melder()
     o.wachtrij.bij_wijziging = melder.meld
+    if spraak is not None:
+        spraak.bij_wijziging = melder.meld  # het gezicht verandert mee: luisteren, denken, praten
     poort = Poortwachter(inst, o.db)
-    planner = Planner(o, bij_wijziging=melder.meld)
+    planner = Planner(o, bij_wijziging=melder.meld, spraak=spraak)
 
     @asynccontextmanager
     async def levensloop(app: FastAPI):
@@ -125,6 +129,8 @@ def maak_app(o: Onderdelen, start_planner: bool = True) -> FastAPI:
             log.warning("voorstel #%s was onderbroken en staat nu op %s", v.id, v.status)
         if start_planner:
             planner.start()
+        if spraak is not None:
+            spraak.warm_op()  # modellen laden (de eerste keer downloaden) op de achtergrond
         yield
         planner.stop()
 
@@ -261,6 +267,7 @@ def maak_app(o: Onderdelen, start_planner: bool = True) -> FastAPI:
             "apparaat": request.state.apparaat,
             "toegang": poort.modus,
             "kan_nadenken": o.brain.client is not None,
+            "spraak": spraak.status() if spraak else {"toestand": "uit", "ondertitel": "", "melding": "", "klaar": False},
         }
 
     @app.get("/api/wacht")
@@ -280,6 +287,16 @@ def maak_app(o: Onderdelen, start_planner: bool = True) -> FastAPI:
             "ms": a.ms,
             "kosten_usd": a.kosten_usd,
         }
+
+    @app.post("/api/luister")
+    def luister(request: Request):
+        # Alleen het scherm van de Pi zelf: anders kan iemand met de webapp op afstand meeluisteren.
+        if not request.state.lokaal:
+            return _fout(403, "Alleen het scherm van de Pi zelf kan de microfoon aanzetten.")
+        if spraak is None:
+            return _fout(503, "Spraak staat uit (SPRAAK in .env), of de pakketten ervoor ontbreken.")
+        spraak.tik()
+        return spraak.status()
 
     @app.post("/api/gesprek/nieuw")
     def nieuw_gesprek(request: Request):
@@ -414,7 +431,8 @@ def main(argv: list[str] | None = None) -> int:
     stel_logging_in(inst, "kern")
     for melding in waarschuwingen(inst):
         log.warning(melding)
-    app = maak_app(maak_onderdelen(inst))
+    o = maak_onderdelen(inst)
+    app = maak_app(o, spraak=maak_spraak(o))
     log.info("Bongo luistert op %s", ", ".join(eigen_adressen(inst)))
     uvicorn.run(
         app,

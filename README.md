@@ -17,7 +17,9 @@ in de webapp, op het touchscreen (twee keer tikken) of met `/ja` in de terminal.
 | `assistent/kern.py` | De server die altijd draait: webapp, touchscreen, API (`python -m assistent.kern`) |
 | `assistent/toegang.py` | Wie er bij de webapp mag (netwerk, herkomst, pincode of koppellink) |
 | `assistent/planner.py` | Ochtendoverzicht, logboek opruimen, scherm 's nachts uit |
-| `assistent/web/` | De pagina's: webapp (`/`), touchscreen (`/kiosk`), aanmelden (`/inloggen`) |
+| `assistent/web/` | De pagina's: webapp (`/`), Bongo's gezicht op het touchscreen (`/kiosk`), aanmelden (`/inloggen`) |
+| `assistent/spraak/` | Luisteren, verstaan (Whisper), praten (Piper); zie `docs/spraak.md` |
+| `assistent/meet.py` | Meet snelheid en kosten van verschillende modellen (`python -m assistent.meet`) |
 | `assistent/brain.py` | De agent-lus rond Claude: vraag stellen, tools uitvoeren, gesprek bijhouden en inkorten |
 | `assistent/tools.py` | De tools die Claude mag gebruiken (agenda lezen, voorstellen doen) |
 | `assistent/wachtrij.py` | Voorstellen die op goedkeuring wachten, en herstel na een stroomstoring |
@@ -30,7 +32,8 @@ in de webapp, op het touchscreen (twee keer tikken) of met `/ja` in de terminal.
 | `assistent/opbouw.py` | Knoopt alle onderdelen aan elkaar |
 | `assistent/cli.py` | Praten met Bongo in de terminal (`python -m assistent`) |
 | `deploy/` | Automatisch starten op de Pi |
-| `docs/beslispunten.md` | De keuzes (gespreksgeheugen, toegang, ...) en waarom |
+| `docs/beslispunten.md` | De keuzes (gespreksgeheugen, toegang, spraak, model, ...) en waarom |
+| `docs/spraak.md` | Hoe de spraak werkt, en de microfoon en luidspreker aansluiten |
 | `docs/hardware.md` | Wat er in en aan de Pi zit (fase 0) |
 | `docs/oefeningen.md` | Echte problemen uit deze code, met uitwerking |
 
@@ -58,7 +61,8 @@ cp .env.example .env             # vul daarna ANTHROPIC_API_KEY en WEB_PIN in
 
 Met de kern aan:
 
-- **Touchscreen:** `http://localhost:8765/kiosk` (op de Pi zelf, zonder aanmelden).
+- **Touchscreen:** `http://localhost:8765/kiosk` (op de Pi zelf, zonder aanmelden). Tik op het gezicht
+  om te praten (zie `docs/spraak.md` voor de microfoon).
 - **Telefoon:** `http://192.168.1.53:8765` of `http://raspberrypi.local:8765`. De eerste keer vraagt
   hij de pincode uit `WEB_PIN`. Zet daarna "Toevoegen aan beginscherm" aan in de browser.
 - **Nog een apparaat koppelen zonder pincode:** in de webapp onder Meer > Apparaten, of op de Pi:
@@ -105,5 +109,6 @@ opvalt in plaats van pas op de Pi.
 - [x] Het brein, de tools, de wachtrij, het geheugen en de agenda, met tests
 - [x] Praten via de terminal
 - [x] De kern: webapp, aanmelden, ochtendoverzicht, herstel na een stroomstoring
-- [x] Het touchscreen als kiosk (fase 4), nog te testen op het echte scherm
-- [ ] Spraak (fase 3): wacht op de microfoon
+- [x] Het touchscreen als kiosk (fase 4): Bongo's gezicht, nog te testen op het echte scherm
+- [x] Spraak (fase 3): gebouwd en getest zonder microfoon; nog te testen met de ReSpeaker
+- [ ] Een wekwoord ("Hé Bongo"), zie `docs/spraak.md`

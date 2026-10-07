@@ -157,37 +157,93 @@ body.inloggen { min-height: 100dvh; display: grid; place-items: center; padding:
 #pin { font-size: 1.6rem; letter-spacing: 0.4em; text-align: center; }
 .melding { color: var(--rood); min-height: 1.4em; }
 
-/* ---- kiosk (touchscreen 1024 x 600) ------------------------------------------------ */
+/* ---- kiosk (touchscreen 1024 x 600): Bongo's gezicht ------------------------------ */
 body.kiosk {
-  --achtergrond: #1c140e; --kaart: #2a1f17; --tekst: #f4ece2; --grijs: #b5a596; --lijn: #3d2f24;
-  height: 100vh; overflow: hidden; display: grid; grid-template-columns: 2fr 3fr; gap: 1.5rem;
-  padding: 1.5rem 2rem; cursor: none; user-select: none;
+  --gezicht: #140d08; /* achtergrond; de oogleden hebben dezelfde kleur, zo lijken de ogen van vorm te veranderen */
+  --boven: 0px;       /* hoe ver het bovenste ooglid zakt (300 = dicht) */
+  --onder: 0px;       /* hoe ver het onderste ooglid stijgt (negatief = lachende ogen) */
+  --pupil: 1;
+  --kijk-x: 0px;
+  --kijk-y: 0px;
+  height: 100vh; margin: 0; overflow: hidden; background: var(--gezicht);
+  cursor: none; user-select: none; -webkit-user-select: none; touch-action: manipulation;
+  transition: opacity 1.5s;
 }
-.kiosk-links { display: flex; flex-direction: column; align-items: flex-start; min-height: 0; overflow: hidden; }
-.klok { font-size: 6rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
-.datum { font-size: 1.5rem; color: var(--grijs); margin-top: 0.3rem; }
-.aap { width: 140px; height: 140px; margin: 1.2rem 0 0.6rem; animation: wiebel 6s ease-in-out infinite; }
-@keyframes wiebel { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
-.ochtend { font-size: 1.05rem; color: var(--grijs); overflow: hidden; margin: 0; }
-.kiosk-rechts { overflow: hidden; }
-.kiosk .dag { font-size: 1.25rem; }
-.kiosk .afspraak-tijd { min-width: 8.5rem; }
+body.kiosk::after { /* een zacht donker randje, over alles heen */
+  content: ""; position: fixed; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+}
+.gezicht { width: 100vw; height: 100vh; display: block; }
+/* Draaien en schalen rond het eigen midden. Niet op alles (*): dan draaien de schuine
+   neusgaten (transform="rotate(...)") om een ander punt en belanden ze in het oog. */
+.pupil, .oog, .neus { transform-box: fill-box; }
 
-.kiosk-voorstellen { position: fixed; left: 2rem; right: 2rem; bottom: 1.2rem; display: grid; gap: 0.6rem; }
+.oogwit { fill: #f5ebdd; }
+.iris { fill: url(#iris-kleur); }
+.pupil { fill: #140b05; transform-origin: center; transform: scale(var(--pupil)); transition: transform 0.4s; }
+.glans { fill: #fff; opacity: 0.9; }
+.kijk { transform: translate(var(--kijk-x), var(--kijk-y)); transition: transform 0.35s cubic-bezier(.3, .7, .3, 1); }
+.ooglid { fill: var(--gezicht); transition: transform 0.25s ease-in-out; }
+.ooglid.boven { transform: translateY(var(--boven)); }
+.ooglid.onder { transform: translateY(var(--onder)); }
+.oog { transform-origin: center; transition: transform 0.35s; }
+.gloed { fill: none; stroke: var(--banaan); stroke-width: 6; opacity: 0; }
+.neusvorm { fill: url(#neus-kleur); }
+.neusgat { fill: #1b100a; }
+.neusglans { fill: #fff; opacity: 0.12; }
+.neus { transform-origin: center; }
+.zzz { opacity: 0; fill: #8a7a6c; font: 700 34px system-ui, sans-serif; }
+
+/* knipperen: heel even dicht */
+body.kiosk.knipper { --boven: 300px; }
+body.kiosk.knipper .ooglid { transition-duration: 0.07s; }
+
+/* luisteren: grote ogen, wijde pupillen, gloed */
+body.luisteren { --pupil: 1.22; }
+body.luisteren .oog { transform: scale(1.06); }
+body.luisteren .gloed { animation: gloed 1.4s ease-in-out infinite; }
+@keyframes gloed { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.6; } }
+
+/* denken: turen, ogen dwalen boven */
+body.denken { --boven: 70px; --pupil: 0.9; }
+body.denken .denkbeweging { animation: denken 2.4s ease-in-out infinite; }
+@keyframes denken { 0%, 100% { transform: translate(-22px, -26px); } 50% { transform: translate(24px, -30px); } }
+
+/* praten: lachende ogen, wippende neus */
+body.praten { --onder: -165px; --boven: 28px; } /* een strakke boog: lachende ogen */
+body.praten .neus { animation: wip 0.36s ease-in-out infinite alternate; }
+@keyframes wip { from { transform: translateY(0); } to { transform: translateY(5px); } }
+
+/* slapen: ogen dicht, alles gedimd, zzz */
+body.slaapt { --boven: 300px; opacity: 0.45; }
+body.slaapt .zzz { animation: zzz 4s ease-in-out infinite; }
+@keyframes zzz { 0% { opacity: 0; transform: translateY(10px); } 30%, 70% { opacity: 0.8; } 100% { opacity: 0; transform: translateY(-14px); } }
+
+/* verward: één oog knijpt, hoofd schudt even */
+body.verward .oog.links .ooglid.boven { transform: translateY(95px); }
+body.verward .gezicht { animation: schud 0.5s ease-in-out 2; }
+@keyframes schud { 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+
+.ondertitel {
+  position: fixed; left: 6%; right: 6%; bottom: 3%; margin: 0; text-align: center;
+  color: #d9cbbb; font-size: 1.45rem; line-height: 1.35; opacity: 0; transition: opacity 0.6s;
+  pointer-events: none;
+}
+.ondertitel.zichtbaar { opacity: 1; }
+.ondertitel.fout { color: #f2a08f; }
+
+.kiosk-voorstellen { position: fixed; left: 2rem; right: 2rem; bottom: 1.2rem; display: grid; gap: 0.6rem; z-index: 5; }
 .kiosk-voorstel {
   background: var(--banaan); color: var(--bruin); border-radius: 18px; padding: 0.9rem 1.2rem;
   display: flex; align-items: center; justify-content: space-between; gap: 1rem;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); font-size: 1.2rem; font-weight: 600;
 }
 .kiosk-voorstel p { margin: 0; }
-.kiosk-meer { margin: 0; text-align: center; color: var(--grijs); }
 .kiosk-voorstel .rij { flex-wrap: nowrap; flex-shrink: 0; }
+.kiosk-meer { margin: 0; text-align: center; color: var(--grijs); }
 .kiosk-voorstel button { min-height: 64px; min-width: 110px; font-size: 1.3rem; background: var(--bruin); color: #fff; }
 .kiosk-voorstel button.tweede { background: transparent; color: var(--bruin); box-shadow: inset 0 0 0 3px var(--bruin); }
 .kiosk-voorstel button.zeker { background: var(--groen); min-width: 230px; }
-
-.nacht { position: fixed; inset: 0; background: #000; display: grid; place-items: center; z-index: 10; }
-.nachtklok { color: #3a3a3a; font-size: 4rem; font-variant-numeric: tabular-nums; }
 .kiosk-storing { position: fixed; top: 0; left: 0; right: 0; background: var(--rood); color: #fff; text-align: center; padding: 0.4rem; z-index: 20; }
 
 [hidden] { display: none !important; }

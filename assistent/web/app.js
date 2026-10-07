@@ -141,6 +141,19 @@ async function laadMeer() {
       : el("p", { class: "uitleg" }, "Nog geen kosten."),
   );
 
+  $("metingen").replaceChildren(
+    kosten.metingen.length
+      ? el(
+          "table",
+          {},
+          el("tr", {}, el("th", {}, "Stap"), el("th", {}, "Aantal"), el("th", {}, "Gemiddeld"), el("th", {}, "Traagst")),
+          kosten.metingen.map((m) =>
+            el("tr", {}, el("td", {}, m.stap), el("td", {}, m.aantal), el("td", {}, `${(m.gemiddeld / 1000).toFixed(1)} s`), el("td", {}, `${(m.traagst / 1000).toFixed(1)} s`)),
+          ),
+        )
+      : el("p", { class: "uitleg" }, "Nog geen metingen: die komen als je met Bongo praat."),
+  );
+
   $("apparaten").replaceChildren(
     ...(apparaten.apparaten.length
       ? apparaten.apparaten.map((a) =>

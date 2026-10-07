@@ -87,3 +87,11 @@ def test_logboek_opruimen(maak):
         con.execute("INSERT INTO gebeurtenissen (tijd, soort, inhoud) VALUES ('2020-01-01T10:00:00+01:00', 'vraag', 'oud')")
     Planner(o, scherm=lambda aan: None).tik(om(8, 3, 5))
     assert [g["inhoud"] for g in o.logboek.recent() if g["inhoud"] == "oud"] == []
+
+
+def test_ochtendoverzicht_uitspreken(maak):
+    o, _ = maak([tekst("Goedemorgen Tymo!")], ochtend_uitspreken=True)
+    gezegd = []
+    spraak = type("NepSpraak", (), {"zeg": lambda self, t: gezegd.append(t) or True})()
+    Planner(o, scherm=lambda aan: None, spraak=spraak).tik(om(8, 7, 31))
+    assert gezegd == ["Goedemorgen Tymo!"]

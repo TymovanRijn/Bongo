@@ -251,3 +251,30 @@ def test_kosten_komen_van_de_eigen_aanroep(maak):
     antwoord = o.brain.vraag("wat heb ik?")
     _, ochtend = o.brain.eenmalig("ochtend", doel="ochtendoverzicht")
     assert antwoord.kosten_usd == pytest.approx(2 * ochtend)  # twee aanroepen tegen één
+
+
+# ---- nadenken of niet ------------------------------------------------------------------
+def test_sonnet_zonder_nadenken(maak):
+    o, nep = maak([tekst("Hoi")], model="claude-sonnet-5-5", denken="tussen_tools")
+    o.brain.vraag("hallo")
+    v = nep.verzoeken[0]
+    assert v["thinking"] == {"type": "between_tools"}
+    assert v["model"] == "claude-sonnet-5-5" and v["fallbacks"] == "default"
+
+
+def test_adaptief_stuurt_geen_thinking_mee(maak):
+    o, nep = maak([tekst("Hoi")])
+    o.brain.vraag("hallo")
+    assert "thinking" not in nep.verzoeken[0]
+
+
+def test_tussen_tools_kan_niet_met_opus(maak):
+    o, nep = maak([tekst("Hoi")], model="claude-opus-5-5", denken="tussen_tools")
+    o.brain.vraag("hallo")
+    assert "thinking" not in nep.verzoeken[0]  # Opus 5.5 kan niet zonder nadenken: dan adaptief
+
+
+@pytest.mark.parametrize("anders", [{"denken": "soms"}, {"model": "claude-sonnet-5-5", "denken": "tussen_tools", "effort": "max"}])
+def test_onmogelijke_denkinstelling(maak, anders):
+    with pytest.raises(ValueError):
+        maak(**anders)

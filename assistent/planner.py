@@ -55,12 +55,14 @@ class Planner:
         o: Onderdelen,
         bij_wijziging: Callable[[], None] | None = None,
         scherm: Callable[[bool], None] = zet_scherm,
+        spraak=None,
     ):
         self.o = o
         self.inst = o.inst
         self.tz = ZoneInfo(o.inst.tijdzone)
         self.bij_wijziging = bij_wijziging or (lambda: None)
         self.scherm = scherm
+        self.spraak = spraak
         self._mislukt_om: datetime | None = None
         self._opgeruimd_op: date | None = None
         self._was_nacht: bool | None = None
@@ -101,13 +103,16 @@ class Planner:
         if self._mislukt_om and nu - self._mislukt_om < self.OPNIEUW_NA:
             return
         try:
-            self.maak_ochtendoverzicht(nu.date())
+            overzicht = self.maak_ochtendoverzicht(nu.date())
         except Exception:
             self._mislukt_om = nu
             raise
         self._mislukt_om = None
         if self.inst.ochtend_uitspreken:
-            log.info("het ochtendoverzicht uitspreken kan pas als de spraak er is (fase 3)")
+            if self.spraak is None:
+                log.info("OCHTEND_UITSPREKEN staat aan, maar de spraak niet")
+            elif not self.spraak.zeg(overzicht["tekst"]):
+                log.info("ochtendoverzicht niet uitgesproken: Bongo was al bezig")
 
     def _opruimen(self, nu: datetime) -> None:
         if nu.hour >= 3 and self._opgeruimd_op != nu.date():

@@ -9,6 +9,10 @@ python-dotenv==1.2.4
 fastapi==0.142.2
 uvicorn==0.54.0
 
+# Spraak (fase 3): verstaan met Whisper, praten met Piper, allebei op de Pi zelf
+faster-whisper==1.2.1
+piper-tts==1.8.0
+
 # Tests
 pytest==9.1.1
 httpx==0.28.1
