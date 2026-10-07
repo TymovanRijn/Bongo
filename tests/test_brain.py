@@ -146,6 +146,8 @@ def test_laatste_n_knipt_zonder_de_api_boos_te_maken(maak):
     o, nep = maak([tekst(f"antwoord {i}") for i in range(5)], gespreksgeheugen="laatste_n", max_beurten=3)
     for i in range(5):
         o.brain.vraag(f"vraag {i}")  # NepClaude geeft een fout als een denkblok niet meer klopt
+    # Precies één verzoek per vraag: geen enkel verzoek werd geweigerd en opnieuw geprobeerd.
+    assert len(nep.verzoeken) == 5
 
     vragen = [b["text"].split("\n")[-1] for b in _blokken(nep.verzoeken[-1]) if b.get("type") == "text" and b["text"].startswith("[")]
     assert vragen == ["vraag 2", "vraag 3", "vraag 4"]
@@ -168,6 +170,7 @@ def test_samenvatten(maak):
     oud = o.brain.gesprek_id
     o.brain.vraag("nog iets?")
 
+    assert len(nep.verzoeken) == 5  # niets geweigerd
     samenvatten = nep.verzoeken[3]
     assert "Vat ons gesprek" in samenvatten["messages"][-1]["content"]
     # Zelfde tools als de rest van het gesprek, maar Claude mag ze nu niet gebruiken.
