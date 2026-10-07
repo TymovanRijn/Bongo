@@ -108,3 +108,36 @@ def test_de_oorzaak_staat_in_de_terminal_en_in_het_logbestand(met_server, caplog
         uit = Terminal(o).verwerk("Wat heb ik vandaag?")
     assert uit == "Bongo: Er ging iets mis bij het nadenken.\n   (technisch: 400 invalid_request_error: tools.1: iets onverwachts)"
     assert "tools.1: iets onverwachts" in caplog.text
+
+
+def test_workspace_header(inst):
+    from dataclasses import replace
+
+    from assistent.opbouw import maak_client
+
+    gezien = []
+
+    def server(request):
+        gezien.append(request.headers.get("anthropic-workspace-id"))
+        return httpx2.Response(200, json=bericht([{"type": "text", "text": "Hoi"}], "end_turn"))
+
+    for workspace in ("wrkspc_01Proef", ""):
+        netwerk = httpx2.Client(transport=httpx2.MockTransport(server))
+        client = maak_client(replace(inst, anthropic_workspace_id=workspace), http_client=netwerk)
+        maak_onderdelen(inst, client=client).brain.vraag("hoi")
+    assert gezien == ["wrkspc_01Proef", None]
+
+
+def test_sleutel_zonder_workspace(met_server):
+    o, _ = met_server(
+        [
+            api_fout(
+                400,
+                "invalid_request_error",
+                "This API key is not scoped to a workspace, so this request must include the anthropic-workspace-id header "
+                "with the ID of the workspace to use. Add the header, or use an API key that is scoped to a workspace.",
+            )
+        ]
+    )
+    with pytest.raises(BreinFout, match="ANTHROPIC_WORKSPACE_ID"):
+        o.brain.vraag("Wat heb ik vandaag?")

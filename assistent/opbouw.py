@@ -41,9 +41,18 @@ def maak_onderdelen(inst: Instellingen, client=..., agenda: AgendaBackend | None
     wachtrij = Wachtrij(db, maak_uitvoerders(agenda, geheugen), bij_wijziging=bij_wijziging, controles=maak_controles(agenda, geheugen))
     tools = ToolUitvoerder(agenda, wachtrij, geheugen, ZoneInfo(inst.tijdzone))
     if client is ...:
-        client = anthropic.Anthropic(api_key=inst.anthropic_api_key, timeout=60.0) if inst.anthropic_api_key else None
+        client = maak_client(inst)
     brain = Brain(client, inst, tools, geheugen, logboek)
     return Onderdelen(inst, db, logboek, geheugen, agenda, wachtrij, tools, brain)
+
+
+def maak_client(inst: Instellingen, http_client=None) -> anthropic.Anthropic | None:
+    """`http_client` is er voor de tests: daarmee vervangen ze alleen het netwerk."""
+    if not inst.anthropic_api_key:
+        return None
+    # De bibliotheek leest ANTHROPIC_WORKSPACE_ID niet zelf bij een gewone API-sleutel; de header moet mee.
+    koppen = {"anthropic-workspace-id": inst.anthropic_workspace_id} if inst.anthropic_workspace_id else None
+    return anthropic.Anthropic(api_key=inst.anthropic_api_key, timeout=60.0, default_headers=koppen, http_client=http_client)
 
 
 def stel_logging_in(inst: Instellingen, naam: str, console_niveau: int = logging.INFO) -> None:

@@ -98,6 +98,12 @@ def _geweigerd(e: anthropic.APIStatusError, model: str) -> BreinFout:
             "Er staat geen tegoed meer op je Anthropic-account. Zet er tegoed op in de Anthropic Console, onder Billing.",
             technisch,
         )
+    if "not scoped to a workspace" in technisch:
+        return BreinFout(
+            "Mijn API-sleutel hoort niet bij een workspace. Zet ANTHROPIC_WORKSPACE_ID in punt env, "
+            "of maak een sleutel binnen een workspace.",
+            technisch,
+        )
     if e.status_code == 404:
         return BreinFout(f"Ik kan het model {model} niet vinden met deze API-sleutel. Kijk naar CLAUDE_MODEL in punt env.", technisch)
     return BreinFout("Er ging iets mis bij het nadenken.", technisch)

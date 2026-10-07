@@ -44,6 +44,8 @@ def _pad(naam: str, standaard: Path) -> Path:
 class Instellingen:
     # Claude
     anthropic_api_key: str = ""
+    # Alleen nodig als de sleutel niet bij één workspace hoort (dan weigert de API anders elk verzoek).
+    anthropic_workspace_id: str = ""
     model: str = "claude-opus-5-5"
     effort: str = "low"
     max_tokens: int = 16000
@@ -98,6 +100,7 @@ def laad_instellingen() -> Instellingen:
     extra_net = tuple(n.strip() for n in _tekst("EXTRA_NETWERKEN").split(",") if n.strip())
     return Instellingen(
         anthropic_api_key=_tekst("ANTHROPIC_API_KEY"),
+        anthropic_workspace_id=_tekst("ANTHROPIC_WORKSPACE_ID"),
         model=_tekst("CLAUDE_MODEL", "claude-opus-5-5"),
         effort=_tekst("CLAUDE_EFFORT", "low"),
         max_tokens=_getal("CLAUDE_MAX_TOKENS", 16000),

@@ -165,7 +165,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     inst = laad_instellingen()
-    stel_logging_in(inst, "cli", console_niveau=logging.WARNING)
+    # Waarschuwingen staan al in het gesprek zelf (de technische regel onder een fout) en in data/logs/.
+    stel_logging_in(inst, "cli", console_niveau=logging.ERROR)
     try:
         o = maak_onderdelen(inst)
     except AgendaFout as e:
